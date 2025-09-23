@@ -1,0 +1,15 @@
+.stat-card {
+  background-color: #1e1e2f;
+  color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  padding: 12px 16px;
+}
+
+.stat-card-title {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 10px;
+}
