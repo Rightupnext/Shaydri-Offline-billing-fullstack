@@ -144,7 +144,8 @@ const DownloadA4Invocie = ({ selectedInvoice, profile, logoBase64 }) => {
           </View>
           <View style={styles.rightColumn}>
             <Text>GSTIN: {profile?.gstNumber}</Text>
-            <Text>{profile?.address}</Text>
+            <Text>Phone: {profile?.phone}</Text>
+            <Text>address: {profile?.address}</Text>
           </View>
         </View>
 
@@ -221,7 +222,7 @@ const DownloadA4Invocie = ({ selectedInvoice, profile, logoBase64 }) => {
                   ['Subtotal :', selectedInvoice?.computedtotals?.subtotal],
                   ['CGST :', selectedInvoice?.computedtotals?.cgst],
                   ['SGST :', selectedInvoice?.computedtotals?.sgst],
-                  ['Boxing Charge :', selectedInvoice?.computedtotals?.boxCharge],
+                  // ['Boxing Charge :', selectedInvoice?.computedtotals?.boxCharge],
                   ['Delivery Charge :', selectedInvoice?.computedtotals?.deliveryCharge],
                   ['Discount :', selectedInvoice?.computedtotals?.discount],
                   ['Net Payable :', selectedInvoice?.computedtotals?.finalAmount]

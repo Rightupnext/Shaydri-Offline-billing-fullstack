@@ -139,13 +139,13 @@ const bakendUrl=import.meta.env.VITE_BACKEND_URL;
               </Form.Item>
             </Col>
 
-            <Col span={12}>
+            {/* <Col span={12}>
               <Form.Item label="Node Mail" name="node_mail">
                 <Input placeholder="Enter Node.js mail ID" />
               </Form.Item>
-            </Col>
+            </Col> */}
 
-            <Col span={12}>
+            {/* <Col span={12}>
               <Form.Item
                 label="Node Password"
                 name="node_password"
@@ -153,7 +153,7 @@ const bakendUrl=import.meta.env.VITE_BACKEND_URL;
               >
                 <Input.Password placeholder="Enter Node.js mail password" />
               </Form.Item>
-            </Col>
+            </Col> */}
 
             <Col span={12}>
               <Form.Item

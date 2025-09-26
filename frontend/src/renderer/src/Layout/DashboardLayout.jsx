@@ -43,7 +43,7 @@ const DashboardLayout = () => {
     { key: '/customers', label: 'Customer List', icon: <TeamOutlined /> },
     { key: '/inventory', label: 'Inventory', icon: <DatabaseOutlined /> },
     { key: '/profile', label: 'Profile', icon: <UserOutlined /> },
-    { key: '/subscription', label: 'Subscription', icon: <CreditCardOutlined /> }
+    // { key: '/subscription', label: 'Subscription', icon: <CreditCardOutlined /> }
   ]
   useEffect(() => {
     const savedDeviceId = localStorage.getItem('deviceId')
@@ -89,7 +89,7 @@ const DashboardLayout = () => {
               height: 64
             }}
           />
-          <div style={{ display: 'flex', flexDirection: 'row', marginLeft: 16 }}>
+          {/* <div style={{ display: 'flex', flexDirection: 'row', marginLeft: 16 }}>
             <Text strong style={{ marginBottom: 4 }}>
               Device ID
             </Text>
@@ -99,7 +99,7 @@ const DashboardLayout = () => {
               onChange={handleDeviceIdChange}
               style={{ width: 200 }}
             />
-          </div>
+          </div> */}
           <Tooltip title="Logout">
             <Button
               type="text"
