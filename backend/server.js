@@ -36,9 +36,16 @@ app.use("/inventory", inventoryRoutes);
 app.use("/whatsapp", whatsappRoutes);
 app.use("/subscription", subscriptionRazerpayTenantRoutes);
 app.use("/barcode", barcodeGeratorRoutes);
-
-// ✅ Static files
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// ------------------------
+// 1. Serve uploads as static
+// ------------------------
+const baseUploadDir = path.join(
+  process.env.APPDATA || path.join(require("os").homedir(), "AppData", "Roaming"),
+  "RightupNext Billing Software",
+  "uploads"
+);
+// Expose uploads folder at /uploads
+app.use("/uploads", express.static(baseUploadDir));
 
 // ✅ Test API
 app.get("/", (req, res) => {

@@ -2,10 +2,9 @@ const multer = require("multer");
 const path = require("path");
 const sharp = require("sharp");
 const fs = require("fs");
+const os = require("os");
 
-// Memory storage for multer
 const storage = multer.memoryStorage();
-
 const upload = multer({
   storage,
   fileFilter(req, file, cb) {
@@ -14,10 +13,9 @@ const upload = multer({
     }
     cb(null, true);
   },
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
-// Mapping of MIME types to file extensions
 const mimeToExtension = {
   "image/jpeg": "jpg",
   "image/jpg": "jpg",
@@ -28,41 +26,43 @@ const mimeToExtension = {
   "image/bmp": "bmp",
 };
 
-// Image processing middleware
+// Process + save image
 const processImage = async (req, res, next) => {
   try {
     if (!req.file) return next();
 
     const dbName = req.params.dbName;
-
     if (!dbName) return res.status(400).json({ message: "db_name is required" });
 
     const ext = mimeToExtension[req.file.mimetype];
     if (!ext) return res.status(400).json({ message: "Unsupported image format" });
 
+    // ✅ Save to AppData\RightupNext Billing Software\uploads\logo\<dbName>
+    const baseUploadDir = path.join(
+      process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
+      "RightupNext Billing Software",
+      "uploads"
+    );
+
+    const outputDir = path.join(baseUploadDir, "logo", dbName);
+    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
     const filename = `logo_${Date.now()}.${ext}`;
-    const outputDir = path.join(__dirname, `../../uploads/logo/${dbName}`);
     const outputPath = path.join(outputDir, filename);
 
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-    }
-
     if (ext === "gif") {
-      // GIF files not processed by sharp
       fs.writeFileSync(outputPath, req.file.buffer);
     } else {
       const processedBuffer = await sharp(req.file.buffer)
         .resize({ width: 800, fit: "inside" })
         .toFormat(ext, { quality: 60 })
         .toBuffer();
-
       fs.writeFileSync(outputPath, processedBuffer);
     }
 
-    // Save the file path for the DB or further use
-    req.logoFileName = `logo/${dbName}/${filename}`;
+    // 🔥 Save only relative path to DB (e.g. `logo/dbName/logo_12345.png`)
+    req.logoFileName = path.relative(baseUploadDir, outputPath);
+
     return next();
   } catch (err) {
     console.error("❌ Image Processing Error:", err.message);
