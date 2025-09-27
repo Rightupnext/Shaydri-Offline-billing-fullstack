@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const multer = require('multer');
 const getUserDbConnection = require('../../getUserDbConnection');
 
@@ -7,21 +8,39 @@ const getUserDbConnection = require('../../getUserDbConnection');
 const storage = multer.memoryStorage();
 exports.upload = multer({ storage }).single('file'); // expects form field "file"
 
+// Base upload folder on Windows AppData
+const baseUploadDir = path.join(
+  process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+  'RightupNext Billing Software',
+  'uploads'
+);
+
+// Expose uploads folder via Express (ensure this is in your app.js or server.js)
+// app.use('/uploads', express.static(baseUploadDir));
+
 exports.saveMessageAndSendPDF = async (req, res) => {
   const { dbName } = req.params;
   const { fromNumber, toNumber, message, selectedOption } = req.body;
+
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'PDF file is required.' });
     }
 
-    // ✅ Step 1: Create db-based folder if not exists
-    const dbFolder = path.join(__dirname, `../../uploads/${dbName}/${selectedOption}/`);
+    // -----------------------
+    // Keep the same relative folder logic as before
+    // ../../uploads/${dbName}/${selectedOption}/
+    // -----------------------
+    const relativeFolder = path.join(dbName, selectedOption);
+    const dbFolder = path.join(baseUploadDir, relativeFolder);
+
     if (!fs.existsSync(dbFolder)) {
       fs.mkdirSync(dbFolder, { recursive: true });
     }
 
-    // ✅ Step 2: Delete files older than 4 days
+    // -----------------------
+    // Delete files older than 4 days
+    // -----------------------
     const now = Date.now();
     const fourDays = 4 * 24 * 60 * 60 * 1000;
 
@@ -40,7 +59,9 @@ exports.saveMessageAndSendPDF = async (req, res) => {
       });
     });
 
-    // ✅ Step 3: Save PDF to disk
+    // -----------------------
+    // Save the new PDF
+    // -----------------------
     const timestamp = Date.now();
     const originalExt = path.extname(req.file.originalname) || '.pdf';
     const pdfName = `uploaded_${timestamp}${originalExt}`;
@@ -48,30 +69,33 @@ exports.saveMessageAndSendPDF = async (req, res) => {
 
     fs.writeFileSync(pdfPath, req.file.buffer);
 
-    // ✅ Step 4: Save metadata to tenant DB
+    // -----------------------
+    // Save metadata to tenant DB
+    // -----------------------
     const tenantDB = await getUserDbConnection(dbName);
-
     const sql = `
       INSERT INTO whatsapp_share_messages 
         (tenant_id, from_number, to_number, message, selected_option, pdf_file_path)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
-
     await tenantDB.query(sql, [
       dbName,
       fromNumber,
       toNumber,
       message,
       selectedOption,
-      `/uploads/${dbName}/${selectedOption}/${pdfName}`
+      path.join(relativeFolder, pdfName) // keep relative path for DB
     ]);
 
-    // ✅ Step 5: Send response
+    // -----------------------
+    // Send response
+    // -----------------------
     res.status(200).json({
       success: true,
-      downloadUrl: `/uploads/${dbName}/${selectedOption}/${pdfName}`,
+      downloadUrl: `/uploads/${relativeFolder}/${pdfName}`,
       message: 'PDF uploaded and metadata saved successfully.'
     });
+
   } catch (err) {
     console.error('❌ Error saving uploaded PDF:', err);
     res.status(500).json({ error: 'Internal Server Error' });

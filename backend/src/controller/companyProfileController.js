@@ -8,11 +8,27 @@ const fs = require("fs");
 exports.upsertCompanyProfile = async (req, res) => {
   const db_name = req.params.dbName;
   const {
-    company_name, slogan, phone, email,
-    node_mail = "", node_password = "",
-    gstNumber, address, state, country,
+    company_name,
+    slogan,
+    phone,
+    email,
+    node_mail = "",
+    node_password = "",
+    gstNumber,
+    address,
+    state,
+    country,
     bank_details
   } = req.body;
+
+  let bankDetailsObj = bank_details;
+  if (typeof bank_details === "string") {
+    try {
+      bankDetailsObj = JSON.parse(bank_details);
+    } catch (err) {
+      return res.status(400).json({ message: "Invalid bank_details JSON" });
+    }
+  }
 
   const newLogo = req.logoFileName || null;
 
@@ -20,16 +36,16 @@ exports.upsertCompanyProfile = async (req, res) => {
     const userDb = await getUserDbConnection(db_name);
     const [existing] = await userDb.query("SELECT * FROM company_profiles LIMIT 1");
 
+    const baseUploadDir = path.join(
+      process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
+      "RightupNext Billing Software",
+      "uploads"
+    );
+
     if (existing.length > 0) {
       const oldLogo = existing[0].logo;
 
-      // Delete old logo if a new one was uploaded
       if (newLogo && oldLogo) {
-        const baseUploadDir = path.join(
-          process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
-          "RightupNext Billing Software",
-          "uploads"
-        );
         const oldLogoPath = path.join(baseUploadDir, oldLogo);
         if (fs.existsSync(oldLogoPath)) fs.unlinkSync(oldLogoPath);
       }
@@ -40,13 +56,23 @@ exports.upsertCompanyProfile = async (req, res) => {
           gstNumber=?, address=?, logo=?, state=?, country=?, bank_details=?, updated_at=NOW()
          WHERE id = ?`,
         [
-          company_name, slogan, phone, email, node_mail, node_password,
-          gstNumber, address, newLogo || oldLogo, state, country,
-          JSON.stringify(bank_details), existing[0].id
+          company_name,
+          slogan,
+          phone,
+          email,
+          node_mail,
+          node_password,
+          gstNumber,
+          address,
+          newLogo || oldLogo,
+          state,
+          country,
+          JSON.stringify(bankDetailsObj), // <--- save as JSON string
+          existing[0].id
         ]
       );
 
-      res.json({ message: "Company profile updated successfully" });
+      return res.json({ message: "Company profile updated successfully" });
     } else {
       await userDb.query(
         `INSERT INTO company_profiles (
@@ -54,16 +80,26 @@ exports.upsertCompanyProfile = async (req, res) => {
           gstNumber, address, logo, state, country, bank_details
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          company_name, slogan, phone, email, node_mail, node_password,
-          gstNumber, address, newLogo, state, country, JSON.stringify(bank_details)
+          company_name,
+          slogan,
+          phone,
+          email,
+          node_mail,
+          node_password,
+          gstNumber,
+          address,
+          newLogo,
+          state,
+          country,
+          JSON.stringify(bankDetailsObj) // <--- save as JSON string
         ]
       );
 
-      res.json({ message: "Company profile created successfully" });
+      return res.json({ message: "Company profile created successfully" });
     }
   } catch (err) {
     console.error("❌ Error saving company profile:", err);
-    res.status(500).json({ message: "Failed to save company profile" });
+    return res.status(500).json({ message: "Failed to save company profile" });
   }
 };
 
