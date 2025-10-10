@@ -458,32 +458,34 @@ exports.getInvoiceAnalytics = async (req, res) => {
         continue;
       }
 
+      const year = moment(invoice.created_at).format("YYYY");
       const month = moment(invoice.created_at).format("MMM");
+      const yearMonthKey = `${year}-${month}`; // unique key per year+month
 
-      if (!monthlySales[month]) {
-        monthlySales[month] = { mrp: 0, rate: 0 };
+      if (!monthlySales[yearMonthKey]) {
+        monthlySales[yearMonthKey] = { year: Number(year), month, mrp: 0, rate: 0 };
       }
+
 
       // Each invoice may contain multiple items
       if (Array.isArray(items)) {
         items.forEach((it) => {
-          monthlySales[month].mrp +=
-            (Number(it.mrp) || 0) * (Number(it.qty) || 0);
-          monthlySales[month].rate +=
-            (Number(it.rate) || 0) * (Number(it.qty) || 0);
+          monthlySales[yearMonthKey].mrp += (Number(it.mrp) || 0) * (Number(it.qty) || 0);
+          monthlySales[yearMonthKey].rate += (Number(it.rate) || 0) * (Number(it.qty) || 0);
         });
       }
+
     }
 
-    const salesReport = Object.entries(monthlySales).map(([month, data]) => ({
-      month,
+    const salesReport = Object.values(monthlySales).map((data) => ({
+      year: data.year,
+      month: data.month,
       Buymrp: data.mrp,
       SellingRate: data.rate,
       profit: data.rate - data.mrp,
-      profitPercent: data.mrp
-        ? (((data.rate - data.mrp) / data.mrp) * 100).toFixed(1)
-        : 0,
+      profitPercent: data.mrp ? (((data.rate - data.mrp) / data.mrp) * 100).toFixed(1) : 0,
     }));
+
 
     // === Totals and adjustments
     const totalPendingAmount =

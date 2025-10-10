@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Card, Col, Row, Typography, DatePicker, Button, Tag, Progress,Table } from 'antd'
+import { Card, Col, Row, Typography, DatePicker, Button, Tag, Progress, Table } from 'antd'
 import {
   LineChart,
   Line,
@@ -32,6 +32,7 @@ const cardColorMap = {
   'Total Invoices': '#52c41a', // green
   'Total Customers': '#9254de' // violet
 }
+const pieColors = ['#52c41a', '#ff4d4f', '#ffc107']; // Adjust colors if needed
 
 const getChange = (current, previous) => {
   if (previous === null || previous === undefined || previous === 0) {
@@ -185,13 +186,6 @@ const DashboardAnalytics = () => {
       .map(([date, amount]) => ({ date, amount }))
       .sort((a, b) => moment(a.date, 'MMM D').toDate() - moment(b.date, 'MMM D').toDate())
   }, [analytics])
-
-  const pieData = [
-    { type: 'Total Amount', value: analytics?.totalFinalAmount || 0 },
-    { type: 'Pending Amount', value: analytics?.totalBalanceAmount || 0 },
-    { type: 'Credit Amount', value: analytics?.totalCreditBillAmount || 0 }
-  ]
-
   const lineConfig = {
     data: lineData,
     xField: 'date',
@@ -202,23 +196,27 @@ const DashboardAnalytics = () => {
     smooth: true,
     autoFit: true
   }
+  const pieData = [
+    { type: 'Total Amount', value: analytics?.totalFinalAmount || 0 },
+    { type: 'Pending Amount', value: analytics?.totalBalanceAmount || 0 },
+    { type: 'Credit Amount', value: analytics?.totalCreditBillAmount || 0 }
+  ]
+
+
+
 
   const pieConfig = {
     data: pieData,
-    angleField: 'value',
-    colorField: 'type',
-    radius: 1,
-    innerRadius: 0.6,
-    label: false,
-    autoFit: true,
-    statistic: {
-      title: false,
-      content: {
-        customHtml: () =>
-          `<div style="font-size:18px;">${analytics?.totalFinalAmount || 0}<br/>Amount</div>`
-      }
-    },
-    legend: { position: 'right' }
+    dataKey: 'value',
+    nameKey: 'type',
+    cx: '50%',
+    cy: '50%',
+    innerRadius: 60,
+    outerRadius: 100,
+    paddingAngle: 4,
+    label: ({ percent }) => `${(percent * 100).toFixed(1)}%`,
+    colors: pieColors,
+    legend: { verticalAlign: 'bottom', height: 36 }
   }
 
   return (
@@ -247,47 +245,52 @@ const DashboardAnalytics = () => {
 
       <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
         <Col xs={24} lg={16}>
-          <Card title="Payments">
+          <Card title="Credit Payments">
             <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={lineData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="sales" stroke="#10b981" name="Selling Rate" />
-            <Line type="monotone" dataKey="mrp" stroke="#ef4444" name="Buy MRP" />
-          </LineChart>
-        </ResponsiveContainer>
+              <LineChart data={lineConfig.data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey={lineConfig.xField} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line
+                  type={lineConfig.smooth ? 'monotone' : 'linear'}
+                  dataKey={lineConfig.yField}
+                  stroke={lineConfig.lineStyle.stroke}
+                  strokeWidth={lineConfig.lineStyle.strokeWidth}
+                  dot={{ r: lineConfig.point.size }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </Card>
         </Col>
         <Col xs={24} lg={8}>
           <Card title="Amount Breakdown">
-           <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={pieData}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={100}
-              paddingAngle={4}
-              label={({ percent }) => `${(percent * 100).toFixed(1)}%`}
-            >
-              {pieData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={pieColors[index]} />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend verticalAlign="bottom" height={36} />
-          </PieChart>
-        </ResponsiveContainer>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieConfig.data}
+                  dataKey={pieConfig.dataKey}
+                  nameKey={pieConfig.nameKey}
+                  cx={pieConfig.cx}
+                  cy={pieConfig.cy}
+                  innerRadius={pieConfig.innerRadius}
+                  outerRadius={pieConfig.outerRadius}
+                  paddingAngle={pieConfig.paddingAngle}
+                  label={pieConfig.label}
+                >
+                  {pieConfig.data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={pieConfig.colors[index]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend {...pieConfig.legend} />
+              </PieChart>
+            </ResponsiveContainer>
           </Card>
         </Col>
       </Row>
-      <SalesMRPDashboard analytics={analytics}/>
+      <SalesMRPDashboard analytics={analytics} />
     </div>
   )
 }

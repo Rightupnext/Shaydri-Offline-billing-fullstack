@@ -28,7 +28,8 @@ const SalesMRPDashboard = ({ analytics }) => {
     {
       title: 'Month',
       dataIndex: 'month',
-      key: 'month'
+      key: 'month',
+      render: (text, record) => `${record.year} - ${record.month}`
     },
     {
       title: 'Purchase MRP',
@@ -236,12 +237,12 @@ const SalesMRPDashboard = ({ analytics }) => {
     }
     return null
   }
-// Prepare chart data from analytics.salesReport
-const salesChartData = (analytics?.salesReport || []).map(item => ({
-  month: item.month,
-  mrp: Number(item.Buymrp || 0),       // Buy MRP
-  sales: Number(item.SellingRate || 0) // Selling Rate
-}))
+  // Prepare chart data from analytics.salesReport
+  const salesChartData = (analytics?.salesReport || []).map(item => ({
+    month: item.month,
+    mrp: Number(item.Buymrp || 0),       // Buy MRP
+    sales: Number(item.SellingRate || 0) // Selling Rate
+  }))
 
   return (
     <div style={styles.container}>

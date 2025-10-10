@@ -24,18 +24,18 @@ class WebSocketManager {
       }
 
       // Log incoming request
-      console.log("🌐 Incoming WebSocket:", req.url);
-      console.log("🔍 Parsed -> dbName:", dbName, "| deviceId:", deviceId);
+      // console.log("🌐 Incoming WebSocket:", req.url);
+      // console.log("🔍 Parsed -> dbName:", dbName, "| deviceId:", deviceId);
 
       // Attach metadata if provided
       ws.dbName = dbName || "anonymous";
       ws.deviceId = deviceId || "unknown";
 
-      console.log(`🔗 WebSocket connected: DB = ${ws.dbName}, Device = ${ws.deviceId}`);
+      // console.log(`🔗 WebSocket connected: DB = ${ws.dbName}, Device = ${ws.deviceId}`);
       this.clients.add(ws);
 
       ws.on("close", () => {
-        console.log(`❌ WebSocket disconnected: DB = ${ws.dbName}, Device = ${ws.deviceId}`);
+        // console.log(`❌ WebSocket disconnected: DB = ${ws.dbName}, Device = ${ws.deviceId}`);
         this.clients.delete(ws);
       });
 
@@ -51,7 +51,7 @@ class WebSocketManager {
       }
     });
 
-    console.log("📡 WebSocket server started");
+    // console.log("📡 WebSocket server started");
   }
 
   sendScannedProduct(product) {

@@ -18,7 +18,7 @@ const useWebSocket = (dbName, deviceId) => {
       const data = JSON.parse(event.data);
       if (data.event === "scanned_product") {
         setScannedProduct(data.product);
-        console.log("📦 Received scanned product:", data.product);
+        // console.log("📦 Received scanned product:", data.product);
       }
     };
 

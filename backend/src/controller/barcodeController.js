@@ -142,12 +142,12 @@ exports.scanProductByBarcode = async (req, res) => {
   try {
     const { dbName, deviceId } = req.params;
     const { barcode_id } = req.body;
-    console.log("first",dbName, deviceId,barcode_id)
+    // console.log("first",dbName, deviceId,barcode_id)
     if (!barcode_id) {
       return res.status(400).json({ message: "❌ Barcode ID is required" });
     }
 
-    console.log(`🔍 Scanning for DB: ${dbName}, Device: ${deviceId}, Barcode: ${barcode_id}`);
+    // console.log(`🔍 Scanning for DB: ${dbName}, Device: ${deviceId}, Barcode: ${barcode_id}`);
 
     const db = await getUserDbConnection(dbName);
 

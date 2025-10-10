@@ -162,7 +162,7 @@ const CategoryManager = () => {
         rowKey="id"
         loading={loading}
         bordered
-        pagination={{ pageSize: 5 }}
+        pagination={{ pageSize: 10 }}
       />
     </div>
   );

@@ -9,7 +9,7 @@ import {
 } from '../store/slice/inventorySlice'
 
 const { Option } = Select
-const allowedUnits = ['kg', 'g', 'liter', 'ml', 'quintal', 'tonne', 'milligram', 'dozen', 'piece']
+const allowedUnits = ['piece','kg', 'g', 'liter', 'ml', 'quintal', 'tonne', 'milligram', 'dozen', ]
 
 const InventoryManager = () => {
   const [modalVisible, setModalVisible] = useState(false)
@@ -30,7 +30,7 @@ const InventoryManager = () => {
     setFormMode(mode)
     setEditingItem(record || null)
 
-    const unit = record?.unit || 'kg'
+    const unit = record?.unit || 'piece' 
     const [kilo = '', grams = ''] = record?.stock_quantity?.split('.') || []
 
     form.setFieldsValue({
@@ -42,7 +42,7 @@ const InventoryManager = () => {
           ? '0'
           : kilo
         : '',
-      grams: ['kg', 'g', 'ml', 'liter', 'dozen', 'piece'].includes(unit)
+      grams: ['piece','kg', 'g', 'ml', 'liter', 'dozen', ].includes(unit)
         ? mode === 'add' || mode === 'reduce'
           ? '0'
           : grams
@@ -186,9 +186,10 @@ const InventoryManager = () => {
           <Form.Item
             label="Unit"
             name="unit"
+            initialValue="piece"
             rules={[{ required: true, message: 'Unit is required' }]}
           >
-            <Select disabled={formMode !== 'create'}>
+            <Select disabled={formMode !== 'create'} >
               {allowedUnits.map((unit) => (
                 <Option key={unit} value={unit}>
                   {unit}

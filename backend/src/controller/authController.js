@@ -6,7 +6,7 @@ exports.register = async (req, res) => {
   const { name, email, password } = req.body;
 
   try {
-    console.log("📥 Registering:", name, email);
+    // console.log("📥 Registering:", name, email);
     // 1. Check if user already exists
     const [userExists] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
     if (userExists.length > 0) {
@@ -33,11 +33,11 @@ exports.register = async (req, res) => {
       return res.status(500).json({ message: "Failed to create user" });
     }
 
-    console.log("✅ User created with ID:", userId);
+    // console.log("✅ User created with ID:", userId);
 
     // 5. Create user-specific database
     await db.query(`CREATE DATABASE \`${dbName}\``);
-    console.log("✅ Database created:", dbName);
+    // console.log("✅ Database created:", dbName);
 
     // 6. Insert into subscriptions table
     await db.query(
@@ -47,7 +47,7 @@ exports.register = async (req, res) => {
       [dbName]
     );
 
-    console.log("✅ Trial subscription created for:", dbName);
+    // console.log("✅ Trial subscription created for:", dbName);
 
     // 7. Generate JWT token
     const token = jwt.generateToken({ id: userId, role: "user" });

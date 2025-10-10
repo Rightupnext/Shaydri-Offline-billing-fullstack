@@ -159,7 +159,7 @@ const bakendUrl=import.meta.env.VITE_BACKEND_URL;
               <Form.Item
                 label="GST Number"
                 name="gstNumber"
-                rules={[{ required: true, message: 'GST Number is required' }]}
+                // rules={[{ required: true, message: 'GST Number is required' }]}
               >
                 <Input placeholder="Enter GST Number" />
               </Form.Item>

@@ -85,7 +85,7 @@ const InvoiceForm = () => {
   }, [])
 
   const scannedProduct = useWebSocket(wsUrl)
-  console.log('scannedProduct', scannedProduct)
+  // console.log('scannedProduct', scannedProduct)
 
   useEffect(() => {
     if (!scannedProduct) return
@@ -149,7 +149,7 @@ const InvoiceForm = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [items, setItems] = useState([])
-  console.log('items', items)
+  // console.log('items', items)
   useEffect(() => {
     dispatch(fetchCompanyProfile())
     dispatch(fetchCustomers())
@@ -206,6 +206,7 @@ const InvoiceForm = () => {
               const gst = parseFloat(selected.SGST || 0) + parseFloat(selected.CGST || 0)
               const rate = parseFloat(selected.saleMrp || 0)
               const amount = record.qty * rate
+              handleItemChange(record.key, 'productId', selected.id)
               handleItemChange(record.key, 'description', value)
               handleItemChange(record.key, 'rate', rate)
               handleItemChange(record.key, 'gst', gst)
@@ -245,7 +246,19 @@ const InvoiceForm = () => {
     {
       title: 'Rate',
       dataIndex: 'rate',
-      render: (text, record) => <Input value={record.rate} readOnly />
+      render: (text, record) => (
+        <Input
+          type="number"
+          min={0}
+          value={record.rate}
+          onChange={(e) => {
+            const rate = parseFloat(e.target.value || 0)
+            const amount = rate * parseFloat(record.qty || 0)
+            handleItemChange(record.key, 'rate', rate)
+            handleItemChange(record.key, 'amount', amount.toFixed(2))
+          }}
+        />
+      )
     },
     {
       title: 'GST %',
@@ -503,7 +516,11 @@ const InvoiceForm = () => {
               <Title level={4}>{profile?.company_name}</Title>
               <div>{profile?.slogan}</div>
               <div>
-                <strong>GSTIN:</strong> {profile?.gstNumber}
+                {profile?.gstNumber?.trim() && (
+                  <>
+                    <strong>GSTIN:</strong> {profile.gstNumber}
+                  </>
+                )}
               </div>
               <div>
                 <strong>Phone:</strong> +91 {profile?.phone}
