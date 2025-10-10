@@ -213,6 +213,7 @@ const InvoiceForm = () => {
               handleItemChange(record.key, 'unit', selected.unit)
               handleItemChange(record.key, 'kilo', selected.kilo)
               handleItemChange(record.key, 'grams', selected.grams)
+              handleItemChange(record.key, 'mrp', parseFloat(selected.mrp || 0))
             }
           }}
         >
@@ -393,7 +394,7 @@ const InvoiceForm = () => {
     }
 
     // ✅ Check for 0/empty delivery & box charge
-    if (Number(deliveryCharge) === 0 ) {
+    if (Number(deliveryCharge) === 0) {
       Modal.confirm({
         title: 'Delivery Charge  are 0',
         content: 'Are you sure you want to continue without setting any charges?',

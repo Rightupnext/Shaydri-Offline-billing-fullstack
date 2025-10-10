@@ -1,10 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Card, Col, Row, Typography, DatePicker, Button, Tag, Progress } from 'antd'
-import { Line, Pie } from '@ant-design/plots'
+import { Card, Col, Row, Typography, DatePicker, Button, Tag, Progress,Table } from 'antd'
+import {
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchInvoiceAnalytics } from '../store/slice/invoiceSlice'
 import moment from 'moment'
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
+import SalesMRPDashboard from './SalesMRPDashboard'
 
 const { RangePicker } = DatePicker
 const { Title, Text } = Typography
@@ -235,15 +248,46 @@ const DashboardAnalytics = () => {
       <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
         <Col xs={24} lg={16}>
           <Card title="Payments">
-            <Line {...lineConfig} />
+            <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={lineData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="month" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Line type="monotone" dataKey="sales" stroke="#10b981" name="Selling Rate" />
+            <Line type="monotone" dataKey="mrp" stroke="#ef4444" name="Buy MRP" />
+          </LineChart>
+        </ResponsiveContainer>
           </Card>
         </Col>
         <Col xs={24} lg={8}>
           <Card title="Amount Breakdown">
-            <Pie {...pieConfig} />
+           <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={pieData}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={100}
+              paddingAngle={4}
+              label={({ percent }) => `${(percent * 100).toFixed(1)}%`}
+            >
+              {pieData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={pieColors[index]} />
+              ))}
+            </Pie>
+            <Tooltip />
+            <Legend verticalAlign="bottom" height={36} />
+          </PieChart>
+        </ResponsiveContainer>
           </Card>
         </Col>
       </Row>
+      <SalesMRPDashboard analytics={analytics}/>
     </div>
   )
 }

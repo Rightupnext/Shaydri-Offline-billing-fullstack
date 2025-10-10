@@ -312,7 +312,7 @@ exports.getInvoiceAnalytics = async (req, res) => {
         ? moment().endOf("month").format("YYYY-MM-DD")
         : endDate;
 
-    // 🔁 Previous full month range
+    // 🔁 Previous month range
     const prevStart = moment(start)
       .subtract(1, "month")
       .startOf("month")
@@ -368,39 +368,41 @@ exports.getInvoiceAnalytics = async (req, res) => {
       };
     };
 
-    // === Fetch current invoices
+    // === Fetch invoices
     const [currentInvoices] = await db.query(
-      `SELECT computedtotals FROM invoices WHERE DATE(created_at) BETWEEN ? AND ?`,
+      `SELECT computedtotals, items, created_at FROM invoices WHERE DATE(created_at) BETWEEN ? AND ?`,
       [start, end]
     );
 
-    const currentStats = computeStatsFromInvoices(currentInvoices);
-
-    // === Fetch previous month invoices
     const [previousInvoices] = await db.query(
       `SELECT computedtotals FROM invoices WHERE DATE(created_at) BETWEEN ? AND ?`,
       [prevStart, prevEnd]
     );
 
+    const currentStats = computeStatsFromInvoices(currentInvoices);
     const previousStats = computeStatsFromInvoices(previousInvoices);
 
-    // === Fetch customers
+    // === Customer count
     const [customerResult] = await db.query(
       `SELECT COUNT(*) as count FROM customers`
     );
     const customerCount = customerResult[0]?.count || 0;
 
-    // === Compute other breakdowns
+    // === Breakdown & payments
     const invoicesBreakdown = [];
     const mergedPaymentHistory = [];
 
     for (const invoice of currentInvoices) {
-      let totals;
+      let totals, items;
       try {
         totals =
           typeof invoice.computedtotals === "string"
             ? JSON.parse(invoice.computedtotals)
             : invoice.computedtotals;
+        items =
+          typeof invoice.items === "string"
+            ? JSON.parse(invoice.items)
+            : invoice.items;
       } catch {
         continue;
       }
@@ -429,6 +431,7 @@ exports.getInvoiceAnalytics = async (req, res) => {
       });
     }
 
+    // === Daily payments summary
     const dailyTotalsMap = {};
     mergedPaymentHistory.forEach(({ date, amount }) => {
       dailyTotalsMap[date] = (dailyTotalsMap[date] || 0) + amount;
@@ -441,6 +444,48 @@ exports.getInvoiceAnalytics = async (req, res) => {
       })
     );
 
+    // === Sales Report (MRP vs Sales per Month)
+    const monthlySales = {};
+
+    for (const invoice of currentInvoices) {
+      let items;
+      try {
+        items =
+          typeof invoice.items === "string"
+            ? JSON.parse(invoice.items)
+            : invoice.items;
+      } catch {
+        continue;
+      }
+
+      const month = moment(invoice.created_at).format("MMM");
+
+      if (!monthlySales[month]) {
+        monthlySales[month] = { mrp: 0, rate: 0 };
+      }
+
+      // Each invoice may contain multiple items
+      if (Array.isArray(items)) {
+        items.forEach((it) => {
+          monthlySales[month].mrp +=
+            (Number(it.mrp) || 0) * (Number(it.qty) || 0);
+          monthlySales[month].rate +=
+            (Number(it.rate) || 0) * (Number(it.qty) || 0);
+        });
+      }
+    }
+
+    const salesReport = Object.entries(monthlySales).map(([month, data]) => ({
+      month,
+      Buymrp: data.mrp,
+      SellingRate: data.rate,
+      profit: data.rate - data.mrp,
+      profitPercent: data.mrp
+        ? (((data.rate - data.mrp) / data.mrp) * 100).toFixed(1)
+        : 0,
+    }));
+
+    // === Totals and adjustments
     const totalPendingAmount =
       currentStats.statusAmounts.UnPaid + currentStats.statusAmounts.Partially;
     const finallyPaidAmount =
@@ -448,7 +493,7 @@ exports.getInvoiceAnalytics = async (req, res) => {
     const adjustedCreditBillAmount =
       currentStats.statusAmounts.CreditBill - finallyPaidAmount;
 
-    // === Final Response
+    // === Final response
     res.status(200).json({
       totalInvoices: currentInvoices.length,
       customerCount,
@@ -459,16 +504,16 @@ exports.getInvoiceAnalytics = async (req, res) => {
       invoicesBreakdown,
       mergedPaymentHistory,
       dailyPayments,
+      salesReport, // ✅ Added Sales Report
       statusCounts: currentStats.statusCounts,
       statusAmounts: currentStats.statusAmounts,
 
-      // 🔁 Previous Month Comparison Data
       previousFinalAmount: previousStats.totalFinalAmount,
       previousBalanceAmount: previousStats.totalBalanceAmount,
       previousCreditBillAmount: previousStats.statusAmounts.CreditBill,
       previousStatusCounts: previousStats.statusCounts,
       previousTotalInvoices: previousInvoices.length,
-      previousCustomerCount: customerCount, // Optional: update if needed based on customer creation date
+      previousCustomerCount: customerCount,
     });
   } catch (error) {
     console.error("❌ Invoice Analytics Error:", error);

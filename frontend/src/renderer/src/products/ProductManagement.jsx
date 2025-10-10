@@ -120,22 +120,22 @@ const ProductManagement = () => {
       render: (id) => categories.find((cat) => cat.id === id)?.category_name
     },
     { title: 'Unit', dataIndex: 'unit', key: 'unit' },
-    { title: 'Kilo', dataIndex: 'kilo', key: 'kilo' },
-    { title: 'Grams', dataIndex: 'grams', key: 'grams' },
+    // { title: 'Kilo', dataIndex: 'kilo', key: 'kilo' },
+    { title: 'QTY', dataIndex: 'grams', key: 'grams' },
     { title: 'MRP', dataIndex: 'mrp', key: 'mrp' },
     { title: 'Sale MRP', dataIndex: 'saleMrp', key: 'saleMrp' },
-    {
-      title: 'MFG',
-      dataIndex: 'mfg_date',
-      key: 'mfg_date',
-      render: (text) => moment(text).format('DD/MM/YYYY')
-    },
-    {
-      title: 'EXP',
-      dataIndex: 'exp_date',
-      key: 'exp_date',
-      render: (text) => moment(text).format('DD/MM/YYYY')
-    },
+    // {
+    //   title: 'MFG',
+    //   dataIndex: 'mfg_date',
+    //   key: 'mfg_date',
+    //   render: (text) => moment(text).format('DD/MM/YYYY')
+    // },
+    // {
+    //   title: 'EXP',
+    //   dataIndex: 'exp_date',
+    //   key: 'exp_date',
+    //   render: (text) => moment(text).format('DD/MM/YYYY')
+    // },
     {
       title: 'Actions',
       render: (_, record) => (
@@ -192,8 +192,8 @@ const ProductManagement = () => {
       case 'piece':
       case 'dozen':
         return (
-          <Form.Item name="grams" label="Count">
-            <InputNumber min={0} style={{ width: '100%' }} />
+          <Form.Item name="grams" label="Count" initialValue={1}>
+            <InputNumber min={0} style={{ width: '100%' }} readOnly />
           </Form.Item>
         )
       default:
@@ -220,7 +220,7 @@ const ProductManagement = () => {
           />
         </Col>
 
-        <Col>
+        {/* <Col>
           <Button
             type="primary"
             onClick={handleOpenAndGenerateBarcodes}
@@ -233,7 +233,7 @@ const ProductManagement = () => {
           >
             Show Selected Barcodes
           </Button>
-        </Col>
+        </Col> */}
       </Row>
 
       <Table
@@ -272,8 +272,8 @@ const ProductManagement = () => {
             </Col>
 
             <Col span={12}>
-              <Form.Item name="unit" label="Unit" rules={[{ required: true }]}>
-                <Select placeholder="Select unit">
+              <Form.Item name="unit" label="Unit" rules={[{ required: true }]} initialValue="piece">
+                <Select placeholder="Select unit" disabled>
                   {defaultUnits.map((u) => (
                     <Select.Option key={u} value={u}>
                       {u}
@@ -298,7 +298,7 @@ const ProductManagement = () => {
               </Form.Item>
             </Col>
 
-            <Col span={12}>
+            {/* <Col span={12}>
               <Form.Item name="mfg_date" label="Manufacture Date">
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
@@ -308,8 +308,8 @@ const ProductManagement = () => {
               <Form.Item name="exp_date" label="Expiry Date">
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
-            </Col>
-            <Col span={24} style={{ display: 'flex' }}>
+            </Col> */}
+            {/* <Col span={24} style={{ display: 'flex' }}>
               {editingProduct?.id && (
                 <>
                   <Image
@@ -370,7 +370,7 @@ const ProductManagement = () => {
                   )}
                 </>
               )}
-            </Col>
+            </Col> */}
 
             <Col span={24}>
               <Form.Item>
