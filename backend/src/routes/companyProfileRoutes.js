@@ -7,7 +7,6 @@ const {
   decryptMiddleware,
   wrapEncryptedHandler,
 } = require("../middleware/encryption");
-const checkSubscriptionExpiry = require("../middleware/checkSubscriptionExpiry");
 const isEncryptionEnabled = process.env.ENCRYPTION_ENABLED === "true";
 
 const withEncryption = (handler) =>
@@ -19,13 +18,11 @@ router.post(
   "/:dbName/add",
   upload.single("logo"),
   processImage,
-  // checkSubscriptionExpiry,
   ...withEncryption(companyProfileController.upsertCompanyProfile)
 );
 
 router.get(
   "/:dbName/get",
-  // checkSubscriptionExpiry,
   ...withEncryption(companyProfileController.getCompanyProfile)
 );
 

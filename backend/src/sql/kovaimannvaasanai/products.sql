@@ -2,6 +2,7 @@ CREATE TABLE products (
     id INT AUTO_INCREMENT PRIMARY KEY,
     product_name VARCHAR(255) NOT NULL,
     category_id INT NOT NULL,
+    inventory_Item_id INT NOT NULL,
     kilo INT DEFAULT 0,
     grams INT DEFAULT 0,
     exp_date DATE,

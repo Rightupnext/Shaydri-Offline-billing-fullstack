@@ -38,10 +38,10 @@ const DashboardLayout = () => {
     { key: '/invoice', label: 'Invoice', icon: <FileTextOutlined /> },
     { key: '/invoice-list', label: 'Invoice List', icon: <UnorderedListOutlined /> },
     // { key: '/admin/invoice-audit', label: 'Invoice Audit', icon: <AuditOutlined /> },
-    { key: '/product', label: 'Product Manager', icon: <AppstoreOutlined /> },
-    { key: '/category', label: 'Category Manager', icon: <FolderOpenOutlined /> },
+    { key: '/product', label: 'Product Price', icon: <AppstoreOutlined /> },
+    { key: '/inventory', label: 'Inventory Stock', icon: <DatabaseOutlined /> },
+    { key: '/category', label: 'Category', icon: <FolderOpenOutlined /> },
     { key: '/customers', label: 'Customer List', icon: <TeamOutlined /> },
-    { key: '/inventory', label: 'Inventory', icon: <DatabaseOutlined /> },
     { key: '/profile', label: 'Profile', icon: <UserOutlined /> },
     // { key: '/subscription', label: 'Subscription', icon: <CreditCardOutlined /> }
   ]

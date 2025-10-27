@@ -3,6 +3,7 @@ CREATE TABLE inventory (
     id INT AUTO_INCREMENT PRIMARY KEY,
     item_name VARCHAR(255) NOT NULL,
     category VARCHAR(100), 
+    category_id INT,
     stock_quantity DECIMAL(10,2) NOT NULL DEFAULT 0,
     unit ENUM('kg', 'g', 'liter', 'ml', 'quintal', 'tonne', 'gram', 'milligram', 'dozen', 'piece') NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -7,20 +7,23 @@
     "start": "nodemon ./server.js",
     "server": "nodemon ./server.js"
   },
-  "pkg": {
-    "scripts": ["server.js"],
-    "assets": ["node_modules/**"],
-    "targets": ["node18-win-x64"],
-    "outputPath": "dist",
-    "windows": {
-      "console": true
-    }
-  },
+"pkg": {
+    "scripts": [
+      "src/**/*.js"
+    ],
+    "assets": [
+      "node_modules/**/*"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "dist"
+  } ,
   "dependencies": {
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "bwip-js": "^4.7.0",
-    "canvas": "^3.1.2",
+    "canvas": "^3.2.0",
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.5.0",

@@ -7,12 +7,14 @@ import {
   deleteInventory,
   updateInventory
 } from '../store/slice/inventorySlice'
+import { fetchCategories } from '../store/slice/categorySlice'
 
 const { Option } = Select
-const allowedUnits = ['piece','kg', 'g', 'liter', 'ml', 'quintal', 'tonne', 'milligram', 'dozen', ]
+const allowedUnits = ['piece', 'kg', 'g', 'liter', 'ml', 'quintal', 'tonne', 'milligram', 'dozen',]
 
 const InventoryManager = () => {
   const [modalVisible, setModalVisible] = useState(false)
+  const categories = useSelector((state) => state.categories.list)
   const [formMode, setFormMode] = useState('create') // create, add, reduce
   const [editingItem, setEditingItem] = useState(null)
   const [form] = Form.useForm()
@@ -23,34 +25,36 @@ const InventoryManager = () => {
     item.item_name?.toLowerCase().includes(searchText.toLowerCase())
   )
   useEffect(() => {
+    dispatch(fetchCategories())
     dispatch(fetchInventory())
   }, [dispatch])
 
   const openModal = (mode, record = null) => {
-    setFormMode(mode)
-    setEditingItem(record || null)
+    setFormMode(mode);
+    setEditingItem(record || null);
 
-    const unit = record?.unit || 'piece' 
-    const [kilo = '', grams = ''] = record?.stock_quantity?.split('.') || []
+    const unit = record?.unit || 'piece';
+    const [kilo = '', grams = ''] = record?.stock_quantity?.split('.') || [];
 
     form.setFieldsValue({
       item_name: record?.item_name || '',
-      category: record?.category || '',
+      category_id: record?.category_id || '',
       unit,
       kilo: ['kg', 'liter', 'quintal', 'tonne'].includes(unit)
         ? mode === 'add' || mode === 'reduce'
           ? '0'
           : kilo
         : '',
-      grams: ['piece','kg', 'g', 'ml', 'liter', 'dozen', ].includes(unit)
+      grams: ['piece', 'kg', 'g', 'ml', 'liter', 'dozen'].includes(unit)
         ? mode === 'add' || mode === 'reduce'
           ? '0'
           : grams
         : ''
-    })
+    });
 
-    setModalVisible(true)
-  }
+    setModalVisible(true);
+  };
+
 
   const handleDelete = async (id) => {
     try {
@@ -75,16 +79,15 @@ const InventoryManager = () => {
       }
 
       if (formMode === 'create') {
-        await dispatch(createInventory(payload)).unwrap()
+        await dispatch(createInventory(payload)).unwrap();
       } else if (formMode === 'add') {
-        await dispatch(
-          updateInventory({ id: editingItem.id, data: payload, action: 'add' })
-        ).unwrap()
+        await dispatch(updateInventory({ id: editingItem.id, data: payload, action: 'add' })).unwrap();
       } else if (formMode === 'reduce') {
-        await dispatch(
-          updateInventory({ id: editingItem.id, data: payload, action: 'reduce' })
-        ).unwrap()
+        await dispatch(updateInventory({ id: editingItem.id, data: payload, action: 'reduce' })).unwrap();
+      } else if (formMode === 'edit') {
+        await dispatch(updateInventory({ id: editingItem.id, data: payload })).unwrap(); // no action
       }
+
 
       form.resetFields()
       setModalVisible(false)
@@ -95,9 +98,19 @@ const InventoryManager = () => {
   }
 
   const columns = [
-    { title: 'Item Name', dataIndex: 'item_name', key: 'item_name' },
-    { title: 'Category', dataIndex: 'category', key: 'category' },
-    { title: 'Stock', dataIndex: 'stock_quantity', key: 'stock_quantity' },
+    { title: 'Product Name', dataIndex: 'item_name', key: 'item_name' },
+    { title: 'Category', dataIndex: 'category_name', key: 'category_name' },
+    {
+      title: 'Stock',
+      dataIndex: 'stock_quantity',
+      key: 'stock_quantity',
+      render: (value) => {
+        if (!value) return '0'
+        // Remove trailing zeros and unnecessary decimal part
+        const num = parseFloat(value)
+        return Number.isInteger(num) ? num : num.toFixed(3).replace(/\.?0+$/, '')
+      }
+    },
     { title: 'Unit', dataIndex: 'unit', key: 'unit' },
     {
       title: 'Actions',
@@ -108,6 +121,9 @@ const InventoryManager = () => {
           </Button>
           <Button onClick={() => openModal('add', record)} type="link">
             Add
+          </Button>
+          <Button onClick={() => openModal('edit', record)} type="link">
+            Edit
           </Button>
           <Popconfirm
             title="Are you sure to delete?"
@@ -122,6 +138,7 @@ const InventoryManager = () => {
         </>
       )
     }
+
   ]
 
   return (
@@ -155,8 +172,11 @@ const InventoryManager = () => {
             ? 'Add Inventory'
             : formMode === 'add'
               ? 'Add Stock'
-              : 'Reduce Stock'
+              : formMode === 'reduce'
+                ? 'Reduce Stock'
+                : 'Edit Inventory'
         }
+
         open={modalVisible}
         onCancel={() => {
           setModalVisible(false)
@@ -172,24 +192,25 @@ const InventoryManager = () => {
             name="item_name"
             rules={[{ required: true, message: 'Item name is required' }]}
           >
-            <Input readOnly={formMode !== 'create'} />
+            <Input readOnly={formMode === 'add' || formMode === 'reduce'} />
           </Form.Item>
 
-          <Form.Item
-            label="Category"
-            name="category"
-            rules={[{ required: true, message: 'Category is required' }]}
-          >
-            <Input readOnly={formMode !== 'create'} />
+          <Form.Item name="category_id" label="Category" rules={[{ required: true }]}>
+            <Select placeholder="Select a category">
+              {categories.map((cat) => (
+                <Select.Option key={cat.id} value={cat.id}>
+                  {cat.category_name}
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
-
           <Form.Item
             label="Unit"
             name="unit"
             initialValue="piece"
             rules={[{ required: true, message: 'Unit is required' }]}
           >
-            <Select disabled={formMode !== 'create'} >
+            <Select disabled>
               {allowedUnits.map((unit) => (
                 <Option key={unit} value={unit}>
                   {unit}
@@ -201,6 +222,14 @@ const InventoryManager = () => {
           <Form.Item noStyle shouldUpdate={(prev, curr) => prev.unit !== curr.unit}>
             {({ getFieldValue }) => {
               const unit = getFieldValue('unit')
+              const labelText =
+                formMode === 'add'
+                  ? 'Add Stock'
+                  : formMode === 'reduce'
+                    ? 'Reduce Stock'
+                    : unit === 'kg' || unit === 'liter'
+                      ? 'Kilo / Grams'
+                      : 'Stock Quantity'
               if (unit === 'kg' || unit === 'liter') {
                 return (
                   <>
@@ -229,7 +258,7 @@ const InventoryManager = () => {
               }
               if (unit === 'dozen' || unit === 'piece') {
                 return (
-                  <Form.Item label="Count" name="grams" initialValue="0">
+                  <Form.Item label={labelText} name="grams" initialValue="0">
                     <Input type="number" step="1" />
                   </Form.Item>
                 )

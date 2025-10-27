@@ -26,11 +26,14 @@ import {
 import { useDispatch, useSelector } from 'react-redux'
 import Search from 'antd/es/transfer/search'
 import { token } from '../auth'
+import { fetchInventory } from '../store/slice/inventorySlice'
 
 const defaultUnits = ['piece', 'dozen', 'kg', 'g', 'liter', 'ml', 'quintal', 'tonne']
 
 const ProductManagement = () => {
   const [products, setProducts] = useState([])
+  const { list: inventoryData, loading } = useSelector((state) => state.inventory)
+  console.log("inventoryData", inventoryData)
   const dispatch = useDispatch()
   const [modalVisible, setModalVisible] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
@@ -63,8 +66,9 @@ const ProductManagement = () => {
   }
 
   useEffect(() => {
-    dispatch(fetchCategories())
-    dispatch(fetchProducts())
+    dispatch(fetchCategories());
+    dispatch(fetchProducts());
+    dispatch(fetchInventory());
   }, [dispatch])
   const openModal = (product = null) => {
     setEditingProduct(product)
@@ -90,17 +94,20 @@ const ProductManagement = () => {
   }
 
   const handleFormSubmit = (values) => {
+     const selectedItem = inventoryData.find((inv) => inv.id === values.item_id)
     const newProduct = {
       ...values,
+      inventory_item_id: selectedItem ? selectedItem.id : null,
+      product_name: selectedItem ? selectedItem.item_name : values.product_name || '',
       id: editingProduct ? editingProduct.id : Date.now().toString(),
       ...(values.mfg_date &&
         moment(values.mfg_date).isValid() && {
-          mfg_date: moment(values.mfg_date).format('YYYY-MM-DD')
-        }),
+        mfg_date: moment(values.mfg_date).format('YYYY-MM-DD')
+      }),
       ...(values.exp_date &&
         moment(values.exp_date).isValid() && {
-          exp_date: moment(values.exp_date).format('YYYY-MM-DD')
-        })
+        exp_date: moment(values.exp_date).format('YYYY-MM-DD')
+      })
     }
 
     if (editingProduct) {
@@ -192,7 +199,7 @@ const ProductManagement = () => {
       case 'piece':
       case 'dozen':
         return (
-          <Form.Item name="grams" label="Count" initialValue={1}>
+          <Form.Item name="grams" label="Qty" initialValue={1}>
             <InputNumber min={0} style={{ width: '100%' }} readOnly />
           </Form.Item>
         )
@@ -254,14 +261,42 @@ const ProductManagement = () => {
         <Form form={form} layout="vertical" onFinish={handleFormSubmit}>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="product_name" label="Product Name" rules={[{ required: true }]}>
-                <Input />
+              <Form.Item
+                name="item_id"
+                label="Item Name"
+                rules={[{ required: true, message: 'Please select item' }]}
+              >
+                <Select
+                  placeholder="Select Item"
+                  onChange={(itemId) => {
+                    const selectedItem = inventoryData.find((inv) => inv.id === itemId)
+                    if (selectedItem) {
+                      form.setFieldsValue({
+                        product_name: selectedItem.item_name,
+                        category_id: selectedItem.category_id,
+                        unit: selectedItem.unit
+                      })
+                    }
+                  }}
+                  showSearch
+                  optionFilterProp="children"
+                >
+                  {inventoryData.map((item) => (
+                    <Select.Option key={item.id} value={item.id}>
+                      {item.item_name}
+                    </Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
 
             <Col span={12}>
-              <Form.Item name="category_id" label="Category" rules={[{ required: true }]}>
-                <Select placeholder="Select a category">
+              <Form.Item
+                name="category_id"
+                label="Category"
+                rules={[{ required: true, message: 'Category is required' }]}
+              >
+                <Select placeholder="Auto-filled from item" disabled>
                   {categories.map((cat) => (
                     <Select.Option key={cat.id} value={cat.id}>
                       {cat.category_name}
@@ -270,6 +305,9 @@ const ProductManagement = () => {
                 </Select>
               </Form.Item>
             </Col>
+
+            
+
 
             <Col span={12}>
               <Form.Item name="unit" label="Unit" rules={[{ required: true }]} initialValue="piece">
