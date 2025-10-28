@@ -6,28 +6,81 @@ exports.createInvoice = async (req, res) => {
   const dbName = req.params.dbName;
   const { invoice_no, customer, items, charges, computedtotals } = req.body;
 
-  // console.log("💾 Saving Invoice:", invoice_no);
+  const connection = await getUserDbConnection(dbName);
+  const transaction = await connection.getConnection();
 
   try {
-    const db = await getUserDbConnection(dbName);
+    // 🔒 Start transaction
+    await transaction.beginTransaction();
 
-    const [result] = await db.query(
+    // 1️⃣ Insert the full invoice JSON
+    const [result] = await transaction.query(
       `INSERT INTO invoices 
-        (invoice_no, customer, items, charges, computedtotals) 
+        (invoice_no, customer, items, charges, computedtotals)
        VALUES (?, ?, ?, ?, ?)`,
       [
         invoice_no,
-        JSON.stringify(customer),
-        JSON.stringify(items),
-        JSON.stringify(charges),
-        JSON.stringify(computedtotals),
+        JSON.stringify(customer || {}),
+        JSON.stringify(items || []),
+        JSON.stringify(charges || {}),
+        JSON.stringify(computedtotals || {}),
       ]
     );
 
-    res.status(201).json({ message: "Invoice created", id: result.insertId });
+    const invoiceId = result.insertId;
+
+    // 2️⃣ Loop through each item and reduce inventory (TRIGGER handles the actual reduction)
+    for (const item of items) {
+      const { inventory_item_id, qty, unit } = item;
+
+      if (!inventory_item_id || !qty) continue;
+
+      // Check stock first
+      const [stockCheck] = await transaction.query(
+        `SELECT stock_quantity FROM inventory WHERE id = ?`,
+        [inventory_item_id]
+      );
+
+      if (!stockCheck.length) {
+        console.warn(`⚠️ Inventory not found for ID: ${inventory_item_id}`);
+        throw new Error(`Inventory not found for ID: ${inventory_item_id}`);
+      }
+
+      const available = Number(stockCheck[0].stock_quantity);
+
+      if (available < qty) {
+        throw new Error(
+          `Not enough stock for item ${inventory_item_id}. Available: ${available}, Requested: ${qty}`
+        );
+      }
+
+      // 3️⃣ Insert into stock_transactions → Trigger updates inventory automatically
+      await transaction.query(
+        `INSERT INTO stock_transactions (inventory_id, transaction_type, quantity, unit)
+         VALUES (?, 'reduce', ?, ?)`,
+        [inventory_item_id, qty, unit]
+      );
+    }
+
+    // ✅ Commit all queries if successful
+    await transaction.commit();
+
+    res.status(201).json({
+      message: "Invoice created successfully",
+      id: invoiceId,
+    });
   } catch (err) {
     console.error("❌ Create Invoice Error:", err);
-    res.status(500).json({ message: "Failed to create invoice" });
+
+    // ❌ Rollback everything if any step fails
+    await transaction.rollback();
+
+    res.status(500).json({
+      message: "Failed to create invoice",
+      error: err.message,
+    });
+  } finally {
+    transaction.release();
   }
 };
 
@@ -463,18 +516,23 @@ exports.getInvoiceAnalytics = async (req, res) => {
       const yearMonthKey = `${year}-${month}`; // unique key per year+month
 
       if (!monthlySales[yearMonthKey]) {
-        monthlySales[yearMonthKey] = { year: Number(year), month, mrp: 0, rate: 0 };
+        monthlySales[yearMonthKey] = {
+          year: Number(year),
+          month,
+          mrp: 0,
+          rate: 0,
+        };
       }
-
 
       // Each invoice may contain multiple items
       if (Array.isArray(items)) {
         items.forEach((it) => {
-          monthlySales[yearMonthKey].mrp += (Number(it.mrp) || 0) * (Number(it.qty) || 0);
-          monthlySales[yearMonthKey].rate += (Number(it.rate) || 0) * (Number(it.qty) || 0);
+          monthlySales[yearMonthKey].mrp +=
+            (Number(it.mrp) || 0) * (Number(it.qty) || 0);
+          monthlySales[yearMonthKey].rate +=
+            (Number(it.rate) || 0) * (Number(it.qty) || 0);
         });
       }
-
     }
 
     const salesReport = Object.values(monthlySales).map((data) => ({
@@ -483,9 +541,10 @@ exports.getInvoiceAnalytics = async (req, res) => {
       Buymrp: data.mrp,
       SellingRate: data.rate,
       profit: data.rate - data.mrp,
-      profitPercent: data.mrp ? (((data.rate - data.mrp) / data.mrp) * 100).toFixed(1) : 0,
+      profitPercent: data.mrp
+        ? (((data.rate - data.mrp) / data.mrp) * 100).toFixed(1)
+        : 0,
     }));
-
 
     // === Totals and adjustments
     const totalPendingAmount =

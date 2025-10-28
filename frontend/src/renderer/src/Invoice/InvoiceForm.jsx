@@ -207,6 +207,7 @@ const InvoiceForm = () => {
               const rate = parseFloat(selected.saleMrp || 0)
               const amount = record.qty * rate
               handleItemChange(record.key, 'productId', selected.id)
+              handleItemChange(record.key, 'inventory_item_id', selected.inventory_item_id)
               handleItemChange(record.key, 'description', value)
               handleItemChange(record.key, 'rate', rate)
               handleItemChange(record.key, 'gst', gst)
