@@ -33,7 +33,6 @@ const defaultUnits = ['piece', 'dozen', 'kg', 'g', 'liter', 'ml', 'quintal', 'to
 const ProductManagement = () => {
   const [products, setProducts] = useState([])
   const { list: inventoryData, loading } = useSelector((state) => state.inventory)
-  console.log("inventoryData", inventoryData)
   const dispatch = useDispatch()
   const [modalVisible, setModalVisible] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
@@ -41,50 +40,51 @@ const ProductManagement = () => {
   const categories = useSelector((state) => state.categories.list)
   const productss = useSelector((state) => state.products.list)
   const [searchText, setSearchText] = useState('')
-  // console.log('productss', productss)
-  const handleSearch = (value) => {
-    setSearchText(value.toLowerCase())
-  }
+  const [selectedRowKeys, setSelectedRowKeys] = useState([])
+  const [barcodeModalVisible, setBarcodeModalVisible] = useState(false)
   const user = token.getUser()
+
+  // ✅ Always treat inventory as array
+  const inventoryList = Array.isArray(inventoryData?.data) ? inventoryData.data : []
+
   const getBarImage = (id) => {
     const timestamp = new Date().getTime()
     return `${import.meta.env.VITE_BACKEND_URL}/barcode/${user.db_name}/image-barcode/${id}?t=${timestamp}`
   }
 
+  const handleSearch = (value) => {
+    setSearchText(value.toLowerCase())
+  }
+
   const filteredProducts = productss.filter((product) =>
     product.product_name?.toLowerCase().includes(searchText)
   )
-  const [selectedRowKeys, setSelectedRowKeys] = useState([])
-  // console.log('selectedRowKeys', selectedRowKeys)
-  const [barcodeModalVisible, setBarcodeModalVisible] = useState(false)
 
   const rowSelection = {
     selectedRowKeys,
-    onChange: (selectedKeys) => {
-      setSelectedRowKeys(selectedKeys)
-    }
+    onChange: (selectedKeys) => setSelectedRowKeys(selectedKeys)
   }
 
   useEffect(() => {
-    dispatch(fetchCategories());
-    dispatch(fetchProducts());
-    dispatch(fetchInventory());
+    dispatch(fetchCategories())
+    dispatch(fetchProducts())
+    dispatch(fetchInventory())
   }, [dispatch])
-const openModal = (product = null) => {
-  setEditingProduct(product)
-  setModalVisible(true)
-  if (product) {
-    form.setFieldsValue({
-      ...product,
-      mfg_date: product.mfg_date ? moment(product.mfg_date) : null,
-      exp_date: product.exp_date ? moment(product.exp_date) : null,
-      item_id: product.inventory_item_id // ✅ auto-select inventory item
-    })
-  } else {
-    form.resetFields()
-  }
-}
 
+  const openModal = (product = null) => {
+    setEditingProduct(product)
+    setModalVisible(true)
+    if (product) {
+      form.setFieldsValue({
+        ...product,
+        mfg_date: product.mfg_date ? moment(product.mfg_date) : null,
+        exp_date: product.exp_date ? moment(product.exp_date) : null,
+        item_id: product.inventory_item_id
+      })
+    } else {
+      form.resetFields()
+    }
+  }
 
   const closeModal = () => {
     setModalVisible(false)
@@ -95,8 +95,9 @@ const openModal = (product = null) => {
     dispatch(deleteProduct(id))
   }
 
+  // ✅ FIX: correctly find category & unit from inventoryData.data
   const handleFormSubmit = (values) => {
-     const selectedItem = inventoryData.find((inv) => inv.id === values.item_id)
+    const selectedItem = inventoryList.find((inv) => inv.id === values.item_id)
     const newProduct = {
       ...values,
       inventory_item_id: selectedItem ? selectedItem.id : null,
@@ -104,12 +105,12 @@ const openModal = (product = null) => {
       id: editingProduct ? editingProduct.id : Date.now().toString(),
       ...(values.mfg_date &&
         moment(values.mfg_date).isValid() && {
-        mfg_date: moment(values.mfg_date).format('YYYY-MM-DD')
-      }),
+          mfg_date: moment(values.mfg_date).format('YYYY-MM-DD')
+        }),
       ...(values.exp_date &&
         moment(values.exp_date).isValid() && {
-        exp_date: moment(values.exp_date).format('YYYY-MM-DD')
-      })
+          exp_date: moment(values.exp_date).format('YYYY-MM-DD')
+        })
     }
 
     if (editingProduct) {
@@ -126,25 +127,12 @@ const openModal = (product = null) => {
       title: 'Category',
       dataIndex: 'category_id',
       key: 'category_id',
-      render: (id) => categories.find((cat) => cat.id === id)?.category_name
+      render: (id) => categories.find((cat) => cat.id === id)?.category_name || '-'
     },
     { title: 'Unit', dataIndex: 'unit', key: 'unit' },
-    // { title: 'Kilo', dataIndex: 'kilo', key: 'kilo' },
     { title: 'QTY', dataIndex: 'grams', key: 'grams' },
     { title: 'MRP', dataIndex: 'mrp', key: 'mrp' },
     { title: 'Sale MRP', dataIndex: 'saleMrp', key: 'saleMrp' },
-    // {
-    //   title: 'MFG',
-    //   dataIndex: 'mfg_date',
-    //   key: 'mfg_date',
-    //   render: (text) => moment(text).format('DD/MM/YYYY')
-    // },
-    // {
-    //   title: 'EXP',
-    //   dataIndex: 'exp_date',
-    //   key: 'exp_date',
-    //   render: (text) => moment(text).format('DD/MM/YYYY')
-    // },
     {
       title: 'Actions',
       render: (_, record) => (
@@ -161,13 +149,12 @@ const openModal = (product = null) => {
       )
     }
   ]
+
   const handleOpenAndGenerateBarcodes = () => {
     dispatch(UpdateSelectedBarcode_with_Print({ barcodeIds: selectedRowKeys }))
-
     setBarcodeModalVisible(true)
   }
 
-  // Watch selected unit from form
   const selectedUnit = Form.useWatch('unit', form)
 
   const renderUnitFields = () => {
@@ -189,13 +176,6 @@ const openModal = (product = null) => {
         return (
           <Form.Item name="grams" label={selectedUnit === 'ml' ? 'Milli Liters' : 'Grams'}>
             <InputNumber min={0} style={{ width: '100%' }} />
-          </Form.Item>
-        )
-      case 'quintal':
-      case 'tonne':
-        return (
-          <Form.Item name="kilo" label="Kilo">
-            <InputNumber min={0} step={0.001} style={{ width: '100%' }} />
           </Form.Item>
         )
       case 'piece':
@@ -228,21 +208,6 @@ const openModal = (product = null) => {
             allowClear
           />
         </Col>
-
-        {/* <Col>
-          <Button
-            type="primary"
-            onClick={handleOpenAndGenerateBarcodes}
-            disabled={selectedRowKeys.length === 0}
-            style={{
-              backgroundColor: '#FFA500',
-              borderColor: '#FFA500',
-              color: 'white'
-            }}
-          >
-            Show Selected Barcodes
-          </Button>
-        </Col> */}
       </Row>
 
       <Table
@@ -253,6 +218,7 @@ const openModal = (product = null) => {
         rowSelection={rowSelection}
       />
 
+      {/* 🟢 Modal for Add/Edit Product */}
       <Modal
         open={modalVisible}
         title={editingProduct ? 'Edit Product' : 'Add Product'}
@@ -271,7 +237,7 @@ const openModal = (product = null) => {
                 <Select
                   placeholder="Select Item"
                   onChange={(itemId) => {
-                    const selectedItem = inventoryData.find((inv) => inv.id === itemId)
+                    const selectedItem = inventoryList.find((inv) => inv.id === itemId)
                     if (selectedItem) {
                       form.setFieldsValue({
                         product_name: selectedItem.item_name,
@@ -283,7 +249,7 @@ const openModal = (product = null) => {
                   showSearch
                   optionFilterProp="children"
                 >
-                  {inventoryData.map((item) => (
+                  {inventoryList.map((item) => (
                     <Select.Option key={item.id} value={item.id}>
                       {item.item_name}
                     </Select.Option>
@@ -307,9 +273,6 @@ const openModal = (product = null) => {
                 </Select>
               </Form.Item>
             </Col>
-
-            
-
 
             <Col span={12}>
               <Form.Item name="unit" label="Unit" rules={[{ required: true }]} initialValue="piece">
@@ -338,80 +301,6 @@ const openModal = (product = null) => {
               </Form.Item>
             </Col>
 
-            {/* <Col span={12}>
-              <Form.Item name="mfg_date" label="Manufacture Date">
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-
-            <Col span={12}>
-              <Form.Item name="exp_date" label="Expiry Date">
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col> */}
-            {/* <Col span={24} style={{ display: 'flex' }}>
-              {editingProduct?.id && (
-                <>
-                  <Image
-                    src={getBarImage(editingProduct.id)}
-                    alt="Barcode"
-                    style={{ width: 250, marginBottom: 12 }}
-                  />
-
-                  {editingProduct.barcode_status === 'barcode not generated' && (
-                    <Button
-                      type="primary"
-                      onClick={() =>
-                        dispatch(generateBarCode(editingProduct.id), setModalVisible(false))
-                      }
-                      style={{
-                        backgroundColor: 'orange',
-                        borderColor: 'orange',
-                        width: 250
-                      }}
-                    >
-                      Generate Barcode
-                    </Button>
-                  )}
-
-                  {editingProduct.barcode_status === 'barcode not updated' && (
-                    <Button
-                      onClick={() =>
-                        dispatch(generateBarCode(editingProduct.id), setModalVisible(false))
-                      }
-                      type="default"
-                      style={{
-                        backgroundColor: '#ffc107',
-                        borderColor: '#ffc107',
-                        color: '#000',
-                        width: 250
-                      }}
-                    >
-                      Barcode Not Updated
-                    </Button>
-                  )}
-
-                  {editingProduct.barcode_status === 'barcode updated' && (
-                    <Button
-                      onClick={() =>
-                        dispatch(generateBarCode(editingProduct.id), setModalVisible(false))
-                      }
-                      type="default"
-                      style={{
-                        backgroundColor: 'green',
-                        borderColor: 'green',
-                        color: '#fff',
-                        width: 250,
-                        marginTop: 125
-                      }}
-                    >
-                      Barcode Updated
-                    </Button>
-                  )}
-                </>
-              )}
-            </Col> */}
-
             <Col span={24}>
               <Form.Item>
                 <div className="flex justify-end gap-2">
@@ -425,6 +314,8 @@ const openModal = (product = null) => {
           </Row>
         </Form>
       </Modal>
+
+      {/* 🟣 Barcode Print Modal */}
       <Modal
         open={barcodeModalVisible}
         title="Selected Product Barcodes"
@@ -442,9 +333,9 @@ const openModal = (product = null) => {
             Print
           </Button>
         ]}
-        width={794} // A4 width in pixels
+        width={794}
         bodyStyle={{
-          height: 1123, // A4 height in pixels
+          height: 1123,
           overflowY: 'auto',
           padding: 24,
           backgroundColor: '#fff'

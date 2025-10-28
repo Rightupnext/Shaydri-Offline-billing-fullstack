@@ -21,7 +21,7 @@ router.post(
   ...withEncryption(companyProfileController.upsertCompanyProfile)
 );
 
-router.get(
+router.get(  
   "/:dbName/get",
   ...withEncryption(companyProfileController.getCompanyProfile)
 );

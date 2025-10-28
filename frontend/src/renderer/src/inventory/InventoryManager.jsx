@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Modal, Button, Form, Input, Select, Table, Popconfirm, message, Spin, Space } from 'antd'
+import { Modal, Button, Form, Input, Select, Table, Popconfirm, message, Spin, Space, DatePicker } from 'antd'
 import { useDispatch, useSelector } from 'react-redux'
 import {
   fetchInventory,
@@ -8,11 +8,17 @@ import {
   updateInventory
 } from '../store/slice/inventorySlice'
 import { fetchCategories } from '../store/slice/categorySlice'
-
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
+import dayjs from 'dayjs'
 const { Option } = Select
+const { RangePicker } = DatePicker
 const allowedUnits = ['piece', 'kg', 'g', 'liter', 'ml', 'quintal', 'tonne', 'milligram', 'dozen',]
-
 const InventoryManager = () => {
+  const [dateRange, setDateRange] = useState([
+    dayjs().startOf('month'),
+    dayjs().endOf('month')
+  ])
   const [modalVisible, setModalVisible] = useState(false)
   const categories = useSelector((state) => state.categories.list)
   const [formMode, setFormMode] = useState('create') // create, add, reduce
@@ -21,13 +27,24 @@ const InventoryManager = () => {
   const dispatch = useDispatch()
   const [searchText, setSearchText] = useState('')
   const { list: inventoryData, loading } = useSelector((state) => state.inventory)
-  const filteredData = inventoryData?.filter((item) =>
+  const filteredData = inventoryData?.data?.filter((item) =>
     item.item_name?.toLowerCase().includes(searchText.toLowerCase())
   )
   useEffect(() => {
-    dispatch(fetchCategories())
-    dispatch(fetchInventory())
-  }, [dispatch])
+    dispatch(fetchCategories());
+    handleFetchInventory(); // ✅ Load data on first render + on date change
+  }, [dispatch, dateRange]); // ✅ Re-run when dateRange changes
+
+  const handleFetchInventory = () => {
+    const [start, end] = dateRange;
+    dispatch(
+      fetchInventory({
+        start_date: start.format('YYYY-MM-DD'),
+        end_date: end.format('YYYY-MM-DD')
+      })
+    );
+  };
+
 
   const openModal = (mode, record = null) => {
     setFormMode(mode);
@@ -113,7 +130,9 @@ const InventoryManager = () => {
     },
     { title: 'Unit', dataIndex: 'unit', key: 'unit' },
     { title: 'Total Sold Qty', dataIndex: 'total_sold_qty', key: 'total_sold_qty' },
+    { title: 'Total Mrp Amount', dataIndex: 'total_mrp_amount', key: 'total_mrp_amount' },
     { title: 'Total Sales Amount', dataIndex: 'total_sales_amount', key: 'total_sales_amount' },
+    { title: 'Profit Amount', dataIndex: 'profit_amount', key: 'profit_amount' },
     {
       title: 'Actions',
       key: 'actions',
@@ -144,18 +163,78 @@ const InventoryManager = () => {
     }
 
   ]
+  const exportToExcel = () => {
+    if (!inventoryData || inventoryData.length === 0) {
+      message.warning('No data available to export')
+      return
+    }
+
+    const dataToExport = inventoryData.map((item, index) => ({
+      'S.No': index + 1,
+      'Item Name': item.item_name,
+      'Category': item.category_name,
+      'Stock Quantity': item.stock_quantity,
+      'Unit': item.unit,
+      'Total Sold Qty': item.total_sold_qty,
+      'Total Sales Amount': item.total_sales_amount,
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory')
+
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+    const dataBlob = new Blob([excelBuffer], { type: 'application/octet-stream' })
+
+    saveAs(dataBlob, `Inventory_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
 
   return (
     <div className="p-4">
-      <Button type="primary" onClick={() => openModal('create')}>
-        Add Inventory Item
-      </Button>
-      <Input
-        placeholder="Search by item name"
-        value={searchText}
-        onChange={(e) => setSearchText(e.target.value)}
-        style={{ width: 300, marginBottom: 16 }}
-      />
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+          flexWrap: 'wrap',
+          gap: 8,
+        }}
+      >
+        <Button type="primary" onClick={() => openModal('create')}>
+          Add Inventory Item
+        </Button>
+
+        <Input
+          placeholder="Search by item name"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          style={{ width: 300 }}
+        />
+        <RangePicker
+          value={dateRange}
+          onChange={(dates) => {
+            if (dates) {
+              setDateRange(dates);
+              // ✅ Optional: trigger fetch immediately on date selection
+              const [start, end] = dates;
+              dispatch(
+                fetchInventory({
+                  start_date: start.format('YYYY-MM-DD'),
+                  end_date: end.format('YYYY-MM-DD')
+                })
+              );
+            }
+          }}
+          style={{ width: 260 }}
+        />
+
+        <Button onClick={exportToExcel}>
+          Export to Excel
+        </Button>
+      </div>
+
       {loading ? (
         <div className="text-center my-8">
           <Spin size="large" />

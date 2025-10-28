@@ -6,20 +6,29 @@ import { token } from '../../auth'
 // 🔹 Fetch All Inventory
 export const fetchInventory = createAsyncThunk(
   'inventory/fetchAll',
-  async (_, { rejectWithValue }) => {
+  async (filters = {}, { rejectWithValue }) => {
     try {
-      const getdb = token.getUser()
-      const res = await axiosInstance.get(`/inventory/${getdb.db_name}/list`)
-      return res.data
+      const getdb = token.getUser();
+      const { start_date, end_date } = filters;
+
+      // 🔹 Build query string dynamically
+      let query = '';
+      if (start_date && end_date) {
+        query = `?start_date=${start_date}&end_date=${end_date}`;
+      }
+
+      const res = await axiosInstance.get(`/inventory/${getdb.db_name}/list${query}`);
+      return res.data;
     } catch (err) {
       notification.error({
         message: 'Fetch Failed',
         description: err?.response?.data?.message || 'Unable to fetch inventory'
-      })
-      return rejectWithValue(err.response?.data || err)
+      });
+      return rejectWithValue(err.response?.data || err);
     }
   }
-)
+);
+
 
 // 🔹 Add Inventory
 export const createInventory = createAsyncThunk(

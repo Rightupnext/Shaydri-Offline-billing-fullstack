@@ -127,12 +127,25 @@ exports.updateInventory = async (req, res) => {
 };
 
 
-// ✅ Get Top Sold Inventory Items with Category Details
-// ✅ Get Top Sold Inventory Items with Category Details
+
+// ✅ Get Inventory with Category + MRP + Profit Analytics + Date Filter
 exports.getInventory = async (req, res) => {
   try {
     const dbName = req.params.dbName;
+    const { start_date, end_date, show_all } = req.query; // ⏱️ Date range filter + show_all toggle
     const db = await getUserDbConnection(dbName);
+
+    // ✅ Default: current month range if not provided
+    const now = new Date();
+    const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      .toISOString()
+      .slice(0, 10);
+    const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      .toISOString()
+      .slice(0, 10);
+
+    const startDate = start_date || defaultStart;
+    const endDate = end_date || defaultEnd;
 
     // 1️⃣ Fetch inventory with category details
     const [inventoryRows] = await db.query(`
@@ -150,10 +163,35 @@ exports.getInventory = async (req, res) => {
       LEFT JOIN categories c ON i.category_id = c.id
     `);
 
-    // 2️⃣ Fetch invoices and parse items
-    const [invoiceRows] = await db.query(`SELECT items FROM invoices`);
+    // 2️⃣ Fetch all products linked to inventory items (average MRP)
+    const [productRows] = await db.query(`
+      SELECT 
+        p.inventory_item_id,
+        AVG(p.mrp) AS avg_mrp,       
+        AVG(p.saleMrp) AS avg_saleMrp
+      FROM products p
+      GROUP BY p.inventory_item_id
+    `);
 
-    // 3️⃣ Aggregate sold items by inventory ID
+    const productMap = {};
+    for (const p of productRows) {
+      productMap[p.inventory_item_id] = {
+        avgMrp: Number(p.avg_mrp) || 0,
+        avgSaleMrp: Number(p.avg_saleMrp) || 0,
+      };
+    }
+
+    // 3️⃣ Fetch invoices and parse items (with date filter)
+    let invoiceQuery = `SELECT items FROM invoices WHERE 1=1`;
+    const queryParams = [];
+
+    if (startDate && endDate) {
+      invoiceQuery += ` AND DATE(created_at) BETWEEN ? AND ?`;
+      queryParams.push(startDate, endDate);
+    }
+
+    const [invoiceRows] = await db.query(invoiceQuery, queryParams);
+
     const soldCountMap = {};
 
     for (const inv of invoiceRows) {
@@ -180,14 +218,29 @@ exports.getInventory = async (req, res) => {
       });
     }
 
-    // 4️⃣ Merge and compute analytics data
-    const analytics = inventoryRows
+    // 4️⃣ Merge data
+    let analytics = inventoryRows
+      .filter((inv) => {
+        // ✅ If show_all=false → only sold items in date range
+        if (show_all === "false" || show_all === "0") {
+          return soldCountMap[inv.id] && soldCountMap[inv.id].totalQty > 0;
+        }
+        return true; // default show all
+      })
       .map((inv) => {
         const soldData = soldCountMap[inv.id] || { totalQty: 0, totalAmount: 0 };
+        const productData = productMap[inv.id] || {
+          avgMrp: 0,
+          avgSaleMrp: 0,
+        };
+
         const stockDisplay =
           inv.stock_quantity >= 1000
             ? `${Math.floor(inv.stock_quantity / 1000)} kg ${(inv.stock_quantity % 1000).toFixed(2)} g`
             : `${inv.stock_quantity} g`;
+
+        const totalMrpAmount = soldData.totalQty * productData.avgMrp;
+        const profitAmount = totalMrpAmount - soldData.totalAmount;
 
         return {
           id: inv.id,
@@ -201,17 +254,40 @@ exports.getInventory = async (req, res) => {
           stock_display: stockDisplay,
           total_sold_qty: soldData.totalQty,
           total_sales_amount: soldData.totalAmount,
+          total_mrp_amount: totalMrpAmount,
+          profit_amount: Math.abs(profitAmount),
         };
-      })
-      .filter((item) => item.total_sold_qty > 0)
-      .sort((a, b) => b.total_sold_qty - a.total_sold_qty);
+      });
 
-    res.status(200).json(analytics);
+    // 5️⃣ Sort by most sold
+    analytics.sort((a, b) => b.total_sold_qty - a.total_sold_qty);
+
+    // 6️⃣ Compute totals for summary
+    const totals = analytics.reduce(
+      (acc, item) => {
+        acc.total_sold_qty += item.total_sold_qty;
+        acc.total_sales_amount += item.total_sales_amount;
+        acc.total_mrp_amount += item.total_mrp_amount;
+        acc.total_profit_amount += item.profit_amount;
+        return acc;
+      },
+      { total_sold_qty: 0, total_sales_amount: 0, total_mrp_amount: 0, total_profit_amount: 0 }
+    );
+
+    // ✅ Final Response
+    res.status(200).json({
+      filter: { start_date: startDate, end_date: endDate },
+      show_all: show_all !== "false",
+      total_items: analytics.length,
+      ...totals,
+      data: analytics,
+    });
   } catch (error) {
-    console.error("❌ Error generating sold analytics:", error);
+    console.error("❌ Error listing inventory:", error);
     res.status(500).json({ error: error.message });
   }
 };
+
 
 
 
