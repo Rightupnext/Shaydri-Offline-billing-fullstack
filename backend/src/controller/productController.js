@@ -40,6 +40,7 @@ exports.createProduct = async (req, res) => {
 
 // ✅ Get All Products
 // ✅ Get All Products (product name comes from inventory.item_name if matched)
+// ✅ Get All Products (name + category come from inventory if linked)
 exports.getProducts = async (req, res) => {
   try {
     const dbName = req.params.dbName;
@@ -48,8 +49,12 @@ exports.getProducts = async (req, res) => {
     const query = `
       SELECT 
         p.id,
-        COALESCE(i.item_name, p.product_name) AS product_name, -- prefer inventory name
-        p.category_id,
+        -- ✅ Prefer inventory item name over product name
+        COALESCE(i.item_name, p.product_name) AS product_name,
+
+        -- ✅ Prefer category_id from inventory over product
+        COALESCE(i.category_id, p.category_id) AS category_id,
+
         p.inventory_item_id,
         p.kilo,
         p.grams,
@@ -61,12 +66,16 @@ exports.getProducts = async (req, res) => {
         p.barcode_path,
         p.barcode_status,
         p.unit,
-        c.category_name,
-        c.SGST,
-        c.CGST
+
+        -- ✅ Join both product’s category and inventory’s category
+        COALESCE(ci.category_name, c.category_name) AS category_name,
+        COALESCE(ci.CGST, c.CGST) AS CGST,
+        COALESCE(ci.SGST, c.SGST) AS SGST
+
       FROM products p
       LEFT JOIN inventory i ON p.inventory_item_id = i.id
-      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN categories c ON p.category_id = c.id             -- Product’s category
+      LEFT JOIN categories ci ON i.category_id = ci.id           -- Inventory’s category
       ORDER BY p.id DESC
     `;
 
@@ -77,6 +86,7 @@ exports.getProducts = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // ✅ Get Product By ID (auto replace product_name from inventory)
 exports.getProductById = async (req, res) => {

@@ -70,19 +70,21 @@ const ProductManagement = () => {
     dispatch(fetchProducts());
     dispatch(fetchInventory());
   }, [dispatch])
-  const openModal = (product = null) => {
-    setEditingProduct(product)
-    setModalVisible(true)
-    if (product) {
-      form.setFieldsValue({
-        ...product,
-        mfg_date: moment(product.mfg_date),
-        exp_date: moment(product.exp_date)
-      })
-    } else {
-      form.resetFields()
-    }
+const openModal = (product = null) => {
+  setEditingProduct(product)
+  setModalVisible(true)
+  if (product) {
+    form.setFieldsValue({
+      ...product,
+      mfg_date: product.mfg_date ? moment(product.mfg_date) : null,
+      exp_date: product.exp_date ? moment(product.exp_date) : null,
+      item_id: product.inventory_item_id // ✅ auto-select inventory item
+    })
+  } else {
+    form.resetFields()
   }
+}
+
 
   const closeModal = () => {
     setModalVisible(false)

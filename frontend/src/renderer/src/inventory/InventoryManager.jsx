@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Modal, Button, Form, Input, Select, Table, Popconfirm, message, Spin } from 'antd'
+import { Modal, Button, Form, Input, Select, Table, Popconfirm, message, Spin, Space } from 'antd'
 import { useDispatch, useSelector } from 'react-redux'
 import {
   fetchInventory,
@@ -112,17 +112,21 @@ const InventoryManager = () => {
       }
     },
     { title: 'Unit', dataIndex: 'unit', key: 'unit' },
+    { title: 'Total Sold Qty', dataIndex: 'total_sold_qty', key: 'total_sold_qty' },
+    { title: 'Total Sales Amount', dataIndex: 'total_sales_amount', key: 'total_sales_amount' },
     {
       title: 'Actions',
+      key: 'actions',
+      align: 'center',
       render: (_, record) => (
-        <>
-          <Button onClick={() => openModal('reduce', record)} type="link">
+        <Space>
+          <Button size="small" onClick={() => openModal('reduce', record)}>
             Reduce
           </Button>
-          <Button onClick={() => openModal('add', record)} type="link">
+          <Button size="small" onClick={() => openModal('add', record)}>
             Add
           </Button>
-          <Button onClick={() => openModal('edit', record)} type="link">
+          <Button size="small" onClick={() => openModal('edit', record)}>
             Edit
           </Button>
           <Popconfirm
@@ -131,11 +135,11 @@ const InventoryManager = () => {
             okText="Yes"
             cancelText="No"
           >
-            <Button danger type="link">
+            <Button size="small" danger>
               Delete
             </Button>
           </Popconfirm>
-        </>
+        </Space>
       )
     }
 

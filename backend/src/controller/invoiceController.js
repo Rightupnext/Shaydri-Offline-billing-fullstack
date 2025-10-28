@@ -355,6 +355,7 @@ exports.getInvoiceAnalytics = async (req, res) => {
   try {
     const db = await getUserDbConnection(dbName);
 
+    // 🕒 Setup date ranges
     const start =
       !startDate || startDate === "undefined"
         ? moment().startOf("month").format("YYYY-MM-DD")
@@ -365,7 +366,6 @@ exports.getInvoiceAnalytics = async (req, res) => {
         ? moment().endOf("month").format("YYYY-MM-DD")
         : endDate;
 
-    // 🔁 Previous month range
     const prevStart = moment(start)
       .subtract(1, "month")
       .startOf("month")
@@ -375,7 +375,7 @@ exports.getInvoiceAnalytics = async (req, res) => {
       .endOf("month")
       .format("YYYY-MM-DD");
 
-    // === Helper to compute stats from invoices
+    // === Helper: compute stats from invoices
     const computeStatsFromInvoices = (invoices) => {
       let totalFinalAmount = 0;
       let totalBalanceAmount = 0;
@@ -421,7 +421,7 @@ exports.getInvoiceAnalytics = async (req, res) => {
       };
     };
 
-    // === Fetch invoices
+    // === Fetch invoices (current + previous month)
     const [currentInvoices] = await db.query(
       `SELECT computedtotals, items, created_at FROM invoices WHERE DATE(created_at) BETWEEN ? AND ?`,
       [start, end]
@@ -489,17 +489,12 @@ exports.getInvoiceAnalytics = async (req, res) => {
     mergedPaymentHistory.forEach(({ date, amount }) => {
       dailyTotalsMap[date] = (dailyTotalsMap[date] || 0) + amount;
     });
-
     const dailyPayments = Object.entries(dailyTotalsMap).map(
-      ([date, amount]) => ({
-        date,
-        amount,
-      })
+      ([date, amount]) => ({ date, amount })
     );
 
     // === Sales Report (MRP vs Sales per Month)
     const monthlySales = {};
-
     for (const invoice of currentInvoices) {
       let items;
       try {
@@ -513,18 +508,12 @@ exports.getInvoiceAnalytics = async (req, res) => {
 
       const year = moment(invoice.created_at).format("YYYY");
       const month = moment(invoice.created_at).format("MMM");
-      const yearMonthKey = `${year}-${month}`; // unique key per year+month
+      const yearMonthKey = `${year}-${month}`;
 
       if (!monthlySales[yearMonthKey]) {
-        monthlySales[yearMonthKey] = {
-          year: Number(year),
-          month,
-          mrp: 0,
-          rate: 0,
-        };
+        monthlySales[yearMonthKey] = { year: Number(year), month, mrp: 0, rate: 0 };
       }
 
-      // Each invoice may contain multiple items
       if (Array.isArray(items)) {
         items.forEach((it) => {
           monthlySales[yearMonthKey].mrp +=
@@ -546,6 +535,60 @@ exports.getInvoiceAnalytics = async (req, res) => {
         : 0,
     }));
 
+    // === Inventory + Top Sold Items (filtered by date range)
+    const [inventoryRows] = await db.query(`
+      SELECT 
+        i.id, i.item_name, i.stock_quantity, i.unit, i.updated_at,
+        c.id AS category_id, c.category_name, c.CGST, c.SGST
+      FROM inventory i
+      LEFT JOIN categories c ON i.category_id = c.id
+    `);
+
+    const soldCountMap = {};
+    for (const inv of currentInvoices) {
+      let items = [];
+      try {
+        if (typeof inv.items === "string") items = JSON.parse(inv.items || "[]");
+        else if (Array.isArray(inv.items)) items = inv.items;
+        else if (typeof inv.items === "object" && inv.items !== null)
+          items = [inv.items];
+      } catch (err) {
+        console.warn("⚠️ Skipping invalid invoice item JSON:", inv.items);
+      }
+
+      items.forEach((item) => {
+        const id = item.inventory_item_id;
+        if (!soldCountMap[id])
+          soldCountMap[id] = { totalQty: 0, totalAmount: 0 };
+        soldCountMap[id].totalQty += Number(item.qty) || 0;
+        soldCountMap[id].totalAmount += Number(item.amount) || 0;
+      });
+    }
+
+    const topSoldItems = inventoryRows
+      .map((inv) => {
+        const soldData = soldCountMap[inv.id] || { totalQty: 0, totalAmount: 0 };
+        const stockDisplay =
+          inv.stock_quantity >= 1000
+            ? `${Math.floor(inv.stock_quantity / 1000)} kg ${(inv.stock_quantity % 1000).toFixed(2)} g`
+            : `${inv.stock_quantity} g`;
+        return {
+          id: inv.id,
+          item_name: inv.item_name,
+          category_id: inv.category_id,
+          category_name: inv.category_name,
+          CGST: inv.CGST,
+          SGST: inv.SGST,
+          unit: inv.unit,
+          stock_quantity: inv.stock_quantity,
+          stock_display: stockDisplay,
+          total_sold_qty: soldData.totalQty,
+          total_sales_amount: soldData.totalAmount,
+        };
+      })
+      .filter((item) => item.total_sold_qty > 0)
+      .sort((a, b) => b.total_sold_qty - a.total_sold_qty);
+
     // === Totals and adjustments
     const totalPendingAmount =
       currentStats.statusAmounts.UnPaid + currentStats.statusAmounts.Partially;
@@ -554,7 +597,7 @@ exports.getInvoiceAnalytics = async (req, res) => {
     const adjustedCreditBillAmount =
       currentStats.statusAmounts.CreditBill - finallyPaidAmount;
 
-    // === Final response
+    // === Final Response
     res.status(200).json({
       totalInvoices: currentInvoices.length,
       customerCount,
@@ -565,7 +608,8 @@ exports.getInvoiceAnalytics = async (req, res) => {
       invoicesBreakdown,
       mergedPaymentHistory,
       dailyPayments,
-      salesReport, // ✅ Added Sales Report
+      salesReport,
+      topSoldItems, // ✅ added top sold inventory list
       statusCounts: currentStats.statusCounts,
       statusAmounts: currentStats.statusAmounts,
 
@@ -581,3 +625,4 @@ exports.getInvoiceAnalytics = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch invoice analytics" });
   }
 };
+

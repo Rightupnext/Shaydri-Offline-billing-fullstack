@@ -127,35 +127,93 @@ exports.updateInventory = async (req, res) => {
 };
 
 
-// ✅ Get All Inventory with Category Details
+// ✅ Get Top Sold Inventory Items with Category Details
+// ✅ Get Top Sold Inventory Items with Category Details
 exports.getInventory = async (req, res) => {
   try {
     const dbName = req.params.dbName;
     const db = await getUserDbConnection(dbName);
 
-    const query = `
-      SELECT i.id, i.item_name, i.stock_quantity, i.unit, i.updated_at,
-             c.id AS category_id, c.category_name, c.CGST, c.SGST
+    // 1️⃣ Fetch inventory with category details
+    const [inventoryRows] = await db.query(`
+      SELECT 
+        i.id, 
+        i.item_name, 
+        i.stock_quantity, 
+        i.unit, 
+        i.updated_at,
+        c.id AS category_id, 
+        c.category_name, 
+        c.CGST, 
+        c.SGST
       FROM inventory i
       LEFT JOIN categories c ON i.category_id = c.id
-      ORDER BY i.id DESC
-    `;
-    const [rows] = await db.query(query);
+    `);
 
-    const formattedData = rows.map((item) => ({
-      ...item,
-      stock_display:
-        item.stock_quantity >= 1000
-          ? `${Math.floor(item.stock_quantity / 1000)} kg ${(item.stock_quantity % 1000).toFixed(2)} g`
-          : `${item.stock_quantity} g`,
-    }));
+    // 2️⃣ Fetch invoices and parse items
+    const [invoiceRows] = await db.query(`SELECT items FROM invoices`);
 
-    res.status(200).json(formattedData);
+    // 3️⃣ Aggregate sold items by inventory ID
+    const soldCountMap = {};
+
+    for (const inv of invoiceRows) {
+      let items = [];
+      try {
+        if (typeof inv.items === "string") {
+          items = JSON.parse(inv.items || "[]");
+        } else if (Array.isArray(inv.items)) {
+          items = inv.items;
+        } else if (typeof inv.items === "object" && inv.items !== null) {
+          items = [inv.items];
+        }
+      } catch (err) {
+        console.warn("⚠️ Skipping invalid invoice item JSON:", inv.items);
+      }
+
+      items.forEach((item) => {
+        const id = item.inventory_item_id;
+        if (!soldCountMap[id]) {
+          soldCountMap[id] = { totalQty: 0, totalAmount: 0 };
+        }
+        soldCountMap[id].totalQty += Number(item.qty) || 0;
+        soldCountMap[id].totalAmount += Number(item.amount) || 0;
+      });
+    }
+
+    // 4️⃣ Merge and compute analytics data
+    const analytics = inventoryRows
+      .map((inv) => {
+        const soldData = soldCountMap[inv.id] || { totalQty: 0, totalAmount: 0 };
+        const stockDisplay =
+          inv.stock_quantity >= 1000
+            ? `${Math.floor(inv.stock_quantity / 1000)} kg ${(inv.stock_quantity % 1000).toFixed(2)} g`
+            : `${inv.stock_quantity} g`;
+
+        return {
+          id: inv.id,
+          item_name: inv.item_name,
+          category_id: inv.category_id,
+          category_name: inv.category_name,
+          CGST: inv.CGST,
+          SGST: inv.SGST,
+          unit: inv.unit,
+          stock_quantity: inv.stock_quantity,
+          stock_display: stockDisplay,
+          total_sold_qty: soldData.totalQty,
+          total_sales_amount: soldData.totalAmount,
+        };
+      })
+      .filter((item) => item.total_sold_qty > 0)
+      .sort((a, b) => b.total_sold_qty - a.total_sold_qty);
+
+    res.status(200).json(analytics);
   } catch (error) {
-    console.error("❌ Error fetching inventory:", error);
+    console.error("❌ Error generating sold analytics:", error);
     res.status(500).json({ error: error.message });
   }
 };
+
+
 
 // ✅ Get Inventory By ID
 exports.getInventoryById = async (req, res) => {
