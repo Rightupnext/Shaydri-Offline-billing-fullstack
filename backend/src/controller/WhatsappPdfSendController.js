@@ -1,6 +1,5 @@
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const multer = require('multer');
 const getUserDbConnection = require('../../getUserDbConnection');
 
@@ -8,15 +7,13 @@ const getUserDbConnection = require('../../getUserDbConnection');
 const storage = multer.memoryStorage();
 exports.upload = multer({ storage }).single('file'); // expects form field "file"
 
-// Base upload folder on Windows AppData
-const baseUploadDir = path.join(
-  process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
-  'RightupNext Billing Software',
-  'uploads'
-);
+// ✅ Base upload directory (inside backend folder)
+const baseUploadDir = path.join(__dirname, '../../../uploads');
 
-// Expose uploads folder via Express (ensure this is in your app.js or server.js)
-// app.use('/uploads', express.static(baseUploadDir));
+// Make sure uploads folder exists
+if (!fs.existsSync(baseUploadDir)) {
+  fs.mkdirSync(baseUploadDir, { recursive: true });
+}
 
 exports.saveMessageAndSendPDF = async (req, res) => {
   const { dbName } = req.params;
@@ -27,10 +24,7 @@ exports.saveMessageAndSendPDF = async (req, res) => {
       return res.status(400).json({ error: 'PDF file is required.' });
     }
 
-    // -----------------------
-    // Keep the same relative folder logic as before
-    // ../../uploads/${dbName}/${selectedOption}/
-    // -----------------------
+    // ✅ Folder structure: uploads/<dbName>/<selectedOption>/
     const relativeFolder = path.join(dbName, selectedOption);
     const dbFolder = path.join(baseUploadDir, relativeFolder);
 
@@ -38,9 +32,7 @@ exports.saveMessageAndSendPDF = async (req, res) => {
       fs.mkdirSync(dbFolder, { recursive: true });
     }
 
-    // -----------------------
-    // Delete files older than 4 days
-    // -----------------------
+    // ✅ Auto-delete old files (older than 4 days)
     const now = Date.now();
     const fourDays = 4 * 24 * 60 * 60 * 1000;
 
@@ -59,9 +51,7 @@ exports.saveMessageAndSendPDF = async (req, res) => {
       });
     });
 
-    // -----------------------
-    // Save the new PDF
-    // -----------------------
+    // ✅ Save uploaded PDF
     const timestamp = Date.now();
     const originalExt = path.extname(req.file.originalname) || '.pdf';
     const pdfName = `uploaded_${timestamp}${originalExt}`;
@@ -69,9 +59,7 @@ exports.saveMessageAndSendPDF = async (req, res) => {
 
     fs.writeFileSync(pdfPath, req.file.buffer);
 
-    // -----------------------
-    // Save metadata to tenant DB
-    // -----------------------
+    // ✅ Save file metadata to tenant DB
     const tenantDB = await getUserDbConnection(dbName);
     const sql = `
       INSERT INTO whatsapp_share_messages 
@@ -84,15 +72,13 @@ exports.saveMessageAndSendPDF = async (req, res) => {
       toNumber,
       message,
       selectedOption,
-      path.join(relativeFolder, pdfName) // keep relative path for DB
+      path.join(relativeFolder, pdfName)
     ]);
 
-    // -----------------------
-    // Send response
-    // -----------------------
+    // ✅ Response with public URL (served from Express static)
     res.status(200).json({
       success: true,
-      downloadUrl: `/uploads/${relativeFolder}/${pdfName}`,
+      downloadUrl: `https://www.shaydri.com/api/uploads/${relativeFolder}/${pdfName}`,
       message: 'PDF uploaded and metadata saved successfully.'
     });
 
