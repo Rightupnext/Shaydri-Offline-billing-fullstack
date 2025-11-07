@@ -1,0 +1,19 @@
+SELECT * FROM rightupnext_gayathri.products;
+-- STEP 1-- 
+-- ALTER TABLE rightupnext_gayathri.products
+-- ADD COLUMN inventory_item_id INT AFTER id;
+-- STEP2-- 
+-- Disable safe mode temporarily
+-- STEP 3-- 
+-- SET SQL_SAFE_UPDATES = 0;
+
+-- -- Update products.inventory_item_id where product_name matches inventory.item_name
+-- UPDATE products AS p
+-- JOIN inventory AS i
+--   ON TRIM(LOWER(p.product_name)) = TRIM(LOWER(i.item_name))
+-- SET p.inventory_item_id = i.id
+-- WHERE p.inventory_item_id IS NULL OR p.inventory_item_id = 0;
+
+-- -- Enable safe updates again
+-- SET SQL_SAFE_UPDATES = 1;
+

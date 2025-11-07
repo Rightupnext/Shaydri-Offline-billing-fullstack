@@ -1,0 +1,22 @@
+DELIMITER $$
+
+DROP TRIGGER IF EXISTS stock_update_trigger $$
+
+CREATE TRIGGER stock_update_trigger
+AFTER INSERT ON stock_transactions
+FOR EACH ROW
+BEGIN
+    -- ✅ Ensure stock never goes negative
+    IF NEW.transaction_type = 'add' THEN
+        UPDATE inventory
+        SET stock_quantity = stock_quantity + NEW.quantity
+        WHERE id = NEW.inventory_id;
+
+    ELSEIF NEW.transaction_type = 'reduce' THEN
+        UPDATE inventory
+        SET stock_quantity = GREATEST(stock_quantity - NEW.quantity, 0)
+        WHERE id = NEW.inventory_id;
+    END IF;
+END $$
+
+DELIMITER ;

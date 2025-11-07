@@ -1,0 +1,17 @@
+SELECT * FROM rightupnext_gayathri.inventory;
+-- step 1-- 
+-- ALTER TABLE rightupnext_gayathri.inventory
+-- ADD COLUMN category_id INT;
+-- step2-- 
+-- SET SQL_SAFE_UPDATES = 0;
+-- UPDATE inventory AS i
+-- JOIN categories AS c
+--   ON TRIM(LOWER(i.category)) = TRIM(LOWER(c.category_name))
+-- SET i.category_id = c.id;
+-- SET SQL_SAFE_UPDATES = 1;
+-- step3--
+-- SET SQL_SAFE_UPDATES = 0;
+
+-- DELETE FROM inventory WHERE category_id IS NULL;
+
+-- SET SQL_SAFE_UPDATES = 1;

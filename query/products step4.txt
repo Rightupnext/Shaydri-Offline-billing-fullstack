@@ -1,0 +1,36 @@
+SELECT * FROM rightupnext_gayathri.products;
+-- 1️⃣ Disable safe updates
+SET SQL_SAFE_UPDATES = 0;
+
+-- 2️⃣ Fill products.inventory_item_id where a matching inventory exists
+UPDATE products p
+JOIN inventory i
+  ON TRIM(LOWER(p.product_name)) = TRIM(LOWER(i.item_name))
+SET p.inventory_item_id = i.id
+WHERE p.inventory_item_id IS NULL OR p.inventory_item_id = 0;
+
+-- 3️⃣ Insert missing inventory rows for products with no match
+INSERT INTO inventory (item_name, category_id, unit, stock_quantity)
+SELECT 
+    p.product_name, 
+    p.category_id, 
+    p.unit, 
+    0
+FROM products p
+LEFT JOIN inventory i
+  ON TRIM(LOWER(p.product_name)) = TRIM(LOWER(i.item_name))
+WHERE p.inventory_item_id IS NULL OR p.inventory_item_id = 0;
+
+-- 4️⃣ Update products.inventory_item_id for newly created inventory rows
+UPDATE products p
+JOIN inventory i
+  ON TRIM(LOWER(p.product_name)) = TRIM(LOWER(i.item_name))
+SET p.inventory_item_id = i.id
+WHERE p.inventory_item_id IS NULL OR p.inventory_item_id = 0;
+
+-- 5️⃣ Re-enable safe updates
+SET SQL_SAFE_UPDATES = 1;
+
+-- ✅ Optional: Verify
+SELECT * FROM products;
+SELECT * FROM inventory;
