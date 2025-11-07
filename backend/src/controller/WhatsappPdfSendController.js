@@ -7,10 +7,10 @@ const getUserDbConnection = require('../../getUserDbConnection');
 const storage = multer.memoryStorage();
 exports.upload = multer({ storage }).single('file'); // expects form field "file"
 
-// ✅ Base upload directory (inside backend folder)
+// ✅ Base upload directory (outside backend)
 const baseUploadDir = path.join(__dirname, '../../../uploads');
 
-// Make sure uploads folder exists
+// Ensure base folder exists
 if (!fs.existsSync(baseUploadDir)) {
   fs.mkdirSync(baseUploadDir, { recursive: true });
 }
@@ -24,18 +24,21 @@ exports.saveMessageAndSendPDF = async (req, res) => {
       return res.status(400).json({ error: 'PDF file is required.' });
     }
 
-    // ✅ Folder structure: uploads/<dbName>/<selectedOption>/
-    const relativeFolder = path.join(dbName, selectedOption);
-    const dbFolder = path.join(baseUploadDir, relativeFolder);
+    // ✅ Ensure tenant base folder exists: /uploads/<dbName>/
+    const tenantBaseFolder = path.join(baseUploadDir, dbName);
+    if (!fs.existsSync(tenantBaseFolder)) {
+      fs.mkdirSync(tenantBaseFolder, { recursive: true });
+    }
 
+    // ✅ Then ensure selectedOption folder exists: /uploads/<dbName>/<selectedOption>/
+    const dbFolder = path.join(tenantBaseFolder, selectedOption);
     if (!fs.existsSync(dbFolder)) {
       fs.mkdirSync(dbFolder, { recursive: true });
     }
 
-    // ✅ Auto-delete old files (older than 4 days)
+    // ✅ Delete old files (older than 4 days)
     const now = Date.now();
     const fourDays = 4 * 24 * 60 * 60 * 1000;
-
     fs.readdir(dbFolder, (err, files) => {
       if (err) return console.error('⚠️ Error reading folder:', err);
       files.forEach((file) => {
@@ -51,7 +54,7 @@ exports.saveMessageAndSendPDF = async (req, res) => {
       });
     });
 
-    // ✅ Save uploaded PDF
+    // ✅ Save the uploaded PDF
     const timestamp = Date.now();
     const originalExt = path.extname(req.file.originalname) || '.pdf';
     const pdfName = `uploaded_${timestamp}${originalExt}`;
@@ -59,7 +62,7 @@ exports.saveMessageAndSendPDF = async (req, res) => {
 
     fs.writeFileSync(pdfPath, req.file.buffer);
 
-    // ✅ Save file metadata to tenant DB
+    // ✅ Save metadata to tenant DB
     const tenantDB = await getUserDbConnection(dbName);
     const sql = `
       INSERT INTO whatsapp_share_messages 
@@ -72,13 +75,13 @@ exports.saveMessageAndSendPDF = async (req, res) => {
       toNumber,
       message,
       selectedOption,
-      path.join(relativeFolder, pdfName)
+      path.join(dbName, selectedOption, pdfName)
     ]);
 
-    // ✅ Response with public URL (served from Express static)
+    // ✅ Send response
     res.status(200).json({
       success: true,
-      downloadUrl: `https://www.shaydri.com/api/uploads/${relativeFolder}/${pdfName}`,
+      downloadUrl: `https://www.shaydri.com/api/uploads/${dbName}/${selectedOption}/${pdfName}`,
       message: 'PDF uploaded and metadata saved successfully.'
     });
 

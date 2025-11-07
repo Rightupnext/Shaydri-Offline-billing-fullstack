@@ -44,12 +44,8 @@ const baseUploadDir = path.join(
   "RightupNext Billing Software",
   "uploads"
 );
-// ✅ Static files
-// ✅ Serve uploaded PDFs & files publicly
-const uploadsDir = path.join(__dirname, "../uploads");
-app.use("/api/uploads", express.static(uploadsDir));
-
-console.log("📂 Serving uploads from:", uploadsDir);
+// Serve files from root uploads folder
+app.use("/api/uploads", express.static(path.join(__dirname, "../uploads")));
 
 
 // ✅ Test API
