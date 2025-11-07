@@ -88,7 +88,7 @@ exports.saveMessageAndSendPDF = async (req, res) => {
     // -------------------------------
     // 🌐 Return public URL
     // -------------------------------
-    const publicUrl = `https://www.shaydri.com/api/uploads/${relativeFolder}/${pdfName}`;
+    const publicUrl = `/uploads/${relativeFolder}/${pdfName}`;
     console.log("✅ PDF saved at:", pdfPath);
     console.log("🌍 Public URL:", publicUrl);
 
