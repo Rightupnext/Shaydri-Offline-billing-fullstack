@@ -1,6 +1,7 @@
 CREATE TABLE categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     category_name VARCHAR(255) NOT NULL,
+    is_deleted TINYINT(1) DEFAULT 0,
     CGST DECIMAL(5,2) NOT NULL,
     SGST DECIMAL(5,2) NOT NULL
 );

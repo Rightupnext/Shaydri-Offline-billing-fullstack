@@ -20,17 +20,20 @@ exports.createCategory = async (req, res) => {
 
 // ✅ Get all categories
 exports.getAllCategories = async (req, res) => {
-  const dbName = req.params.dbName; // ✅ fixed here
+  const dbName = req.params.dbName;
 
   try {
     const db = await getUserDbConnection(dbName);
-    const [rows] = await db.query('SELECT * FROM categories');
+    const [rows] = await db.query(
+      'SELECT * FROM categories WHERE is_deleted = 0 ORDER BY id DESC'
+    );
     res.json(rows);
   } catch (err) {
     console.error('Get Categories Error:', err);
     res.status(500).json({ message: 'Failed to fetch categories' });
   }
 };
+
 
 // ✅ Update category by ID
 exports.updateCategoryById = async (req, res) => {
@@ -57,17 +60,24 @@ exports.updateCategoryById = async (req, res) => {
 // ✅ Delete category by ID
 exports.deleteCategoryById = async (req, res) => {
   const { id } = req.params;
-  const dbName = req.params.dbName; // ✅ fixed here
+  const dbName = req.params.dbName;
 
   try {
     const db = await getUserDbConnection(dbName);
-    const [result] = await db.query('DELETE FROM categories WHERE id = ?', [id]);
+    
+    const [result] = await db.query(
+      'UPDATE categories SET is_deleted = 1 WHERE id = ?',
+      [id]
+    );
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Category not found' });
     }
-    res.json({ message: 'Category deleted successfully' });
+
+    res.json({ message: 'Category soft-deleted successfully' });
   } catch (err) {
     console.error('Delete Category Error:', err);
-    res.status(500).json({ message: 'Failed to delete category' });
+    res.status(500).json({ message: 'Failed to soft-delete category' });
   }
 };
+

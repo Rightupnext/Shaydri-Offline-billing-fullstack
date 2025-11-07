@@ -38,9 +38,7 @@ exports.createProduct = async (req, res) => {
   }
 };
 
-// ✅ Get All Products
-// ✅ Get All Products (product name comes from inventory.item_name if matched)
-// ✅ Get All Products (name + category come from inventory if linked)
+// ✅ Get All Products (ignore soft-deleted)
 exports.getProducts = async (req, res) => {
   try {
     const dbName = req.params.dbName;
@@ -49,12 +47,8 @@ exports.getProducts = async (req, res) => {
     const query = `
       SELECT 
         p.id,
-        -- ✅ Prefer inventory item name over product name
         COALESCE(i.item_name, p.product_name) AS product_name,
-
-        -- ✅ Prefer category_id from inventory over product
         COALESCE(i.category_id, p.category_id) AS category_id,
-
         p.inventory_item_id,
         p.kilo,
         p.grams,
@@ -66,26 +60,32 @@ exports.getProducts = async (req, res) => {
         p.barcode_path,
         p.barcode_status,
         p.unit,
-
-        -- ✅ Join both product’s category and inventory’s category
+        i.stock_quantity AS inventory_quantity,
         COALESCE(ci.category_name, c.category_name) AS category_name,
         COALESCE(ci.CGST, c.CGST) AS CGST,
         COALESCE(ci.SGST, c.SGST) AS SGST
-
       FROM products p
-      LEFT JOIN inventory i ON p.inventory_item_id = i.id
-      LEFT JOIN categories c ON p.category_id = c.id             -- Product’s category
-      LEFT JOIN categories ci ON i.category_id = ci.id           -- Inventory’s category
+      LEFT JOIN inventory i ON p.inventory_item_id = i.id AND i.is_deleted = 0
+      LEFT JOIN categories c ON p.category_id = c.id AND c.is_deleted = 0
+      LEFT JOIN categories ci ON i.category_id = ci.id AND ci.is_deleted = 0
+      WHERE p.is_deleted = 0
       ORDER BY p.id DESC
     `;
 
     const [products] = await db.query(query);
-    res.status(200).json({ products });
+
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      products
+    });
   } catch (error) {
     console.error("❌ Error fetching products:", error);
     res.status(500).json({ error: error.message });
   }
 };
+
+
 
 
 // ✅ Get Product By ID (auto replace product_name from inventory)
@@ -239,15 +239,18 @@ exports.deleteProductById = async (req, res) => {
     const { dbName, productId } = req.params;
     const db = await getUserDbConnection(dbName);
 
-    const [result] = await db.query("DELETE FROM products WHERE id = ?", [productId]);
+    const [result] = await db.query(
+      "UPDATE products SET is_deleted = 1 WHERE id = ?",
+      [productId]
+    );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    res.status(200).json({ message: "Product deleted successfully" });
+    res.status(200).json({ message: "Product soft-deleted successfully" });
   } catch (error) {
-    console.error("❌ Error deleting product:", error);
+    console.error("❌ Error soft-deleting product:", error);
     res.status(500).json({ error: error.message });
   }
 };

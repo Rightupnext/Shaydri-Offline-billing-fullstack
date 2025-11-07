@@ -1,5 +1,6 @@
 CREATE TABLE invoices (
   id INT PRIMARY KEY AUTO_INCREMENT,
+  is_deleted TINYINT(1) DEFAULT 0,
   invoice_no VARCHAR(50) NOT NULL UNIQUE,        -- Invoice number (e.g., INV-2025-004)
   customer JSON NOT NULL,                        -- Customer details (name, phone, email, etc.)
   items JSON NOT NULL,                           -- List of billed items

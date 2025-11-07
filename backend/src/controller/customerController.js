@@ -26,7 +26,9 @@ exports.getAllCustomers = async (req, res) => {
 
   try {
     const db = await getUserDbConnection(dbName);
-    const [rows] = await db.query('SELECT * FROM customers ORDER BY id DESC');
+    const [rows] = await db.query(
+      'SELECT * FROM customers WHERE is_deleted = 0 ORDER BY id DESC'
+    );
     res.status(200).json(rows);
   } catch (err) {
     console.error('❌ Get Customers Error:', err);
@@ -57,17 +59,25 @@ exports.updateCustomer = async (req, res) => {
 
 // ✅ Delete Customer
 exports.deleteCustomer = async (req, res) => {
+  const { id } = req.params;
   const dbName = req.params.dbName;
-  const customerId = req.params.customerId;
 
   try {
     const db = await getUserDbConnection(dbName);
-    await db.query('DELETE FROM customers WHERE id = ?', [customerId]);
 
-    res.status(200).json({ message: 'Customer deleted' });
+    const [result] = await db.query(
+      'UPDATE customers SET is_deleted = 1 WHERE id = ?',
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
+
+    res.json({ message: 'Customer soft-deleted successfully' });
   } catch (err) {
-    console.error('❌ Delete Customer Error:', err);
-    res.status(500).json({ message: 'Failed to delete customer' });
+    console.error('Delete Customer Error:', err);
+    res.status(500).json({ message: 'Failed to soft-delete customer' });
   }
 };
 exports.getNextInvoiceNumber = async (req, res) => {

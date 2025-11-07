@@ -200,6 +200,7 @@ const InvoiceForm = () => {
           placeholder="Select Product"
           value={record.description}
           style={{ width: 230 }}
+          optionFilterProp="children"
           onChange={(value) => {
             const selected = products.find((p) => p.product_name === value)
             if (selected) {
@@ -219,11 +220,22 @@ const InvoiceForm = () => {
             }
           }}
         >
-          {products.map((p) => (
-            <Option key={p.id} value={p.product_name}>
-              {p.product_name}
-            </Option>
-          ))}
+          {products.map((p) => {
+            const quantity = parseFloat(p.inventory_quantity || 0)
+            return (
+              <Option
+                key={p.id}
+                value={p.product_name}
+                style={{
+                  color: quantity <= 0 ? 'red' : 'inherit', // 🔴 Red if out of stock
+                  fontWeight: quantity <= 0 ? '600' : 'normal',
+                }}
+              >
+                {p.product_name}{' '}
+                {quantity <= 0 ? '(Out of Stock)' : `(${quantity} ${p.unit || ''})`}
+              </Option>
+            )
+          })}
         </Select>
       )
     },
@@ -241,6 +253,7 @@ const InvoiceForm = () => {
             handleItemChange(record.key, 'qty', qty)
             handleItemChange(record.key, 'amount', amount.toFixed(2))
           }}
+           onWheel={(e) => e.target.blur()} // ⚡ prevent scroll change
         />
       )
     },
@@ -258,6 +271,7 @@ const InvoiceForm = () => {
             handleItemChange(record.key, 'rate', rate)
             handleItemChange(record.key, 'amount', amount.toFixed(2))
           }}
+           onWheel={(e) => e.target.blur()} // ⚡ prevent scroll change
         />
       )
     },

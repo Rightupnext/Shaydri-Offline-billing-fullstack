@@ -4,6 +4,7 @@ CREATE TABLE customers (
     address TEXT,
     phone VARCHAR(15),
     gst_number TEXT,
+    is_deleted TINYINT(1) DEFAULT 0,
     email VARCHAR(255) UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

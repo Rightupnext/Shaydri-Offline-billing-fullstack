@@ -148,20 +148,23 @@ exports.getInventory = async (req, res) => {
     const endDate = end_date || defaultEnd;
 
     // 1️⃣ Fetch inventory with category details
+
     const [inventoryRows] = await db.query(`
-      SELECT 
-        i.id, 
-        i.item_name, 
-        i.stock_quantity, 
-        i.unit, 
-        i.updated_at,
-        c.id AS category_id, 
-        c.category_name, 
-        c.CGST, 
-        c.SGST
-      FROM inventory i
-      LEFT JOIN categories c ON i.category_id = c.id
-    `);
+  SELECT 
+    i.id, 
+    i.item_name, 
+    i.stock_quantity, 
+    i.unit, 
+    i.updated_at,
+    c.id AS category_id, 
+    c.category_name, 
+    c.CGST, 
+    c.SGST
+  FROM inventory i
+  LEFT JOIN categories c ON i.category_id = c.id
+  WHERE i.is_deleted = 0
+`);
+
 
     // 2️⃣ Fetch all products linked to inventory items (average MRP)
     const [productRows] = await db.query(`
@@ -331,10 +334,20 @@ exports.deleteInventory = async (req, res) => {
     const inventoryId = req.params.inventoryId;
 
     const db = await getUserDbConnection(dbName);
-    await db.query(`DELETE FROM inventory WHERE id = ?`, [inventoryId]);
-    res.status(200).json({ message: "Inventory deleted successfully" });
+
+    const [result] = await db.query(
+      `UPDATE inventory SET is_deleted = 1 WHERE id = ?`,
+      [inventoryId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Inventory item not found" });
+    }
+
+    res.status(200).json({ message: "Inventory item soft-deleted successfully" });
   } catch (error) {
-    console.error("❌ Error deleting inventory:", error);
+    console.error("❌ Error soft-deleting inventory:", error);
     res.status(500).json({ error: error.message });
   }
 };
+

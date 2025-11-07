@@ -1,5 +1,6 @@
 CREATE TABLE products (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    is_deleted TINYINT(1) DEFAULT 0,
     product_name VARCHAR(255) NOT NULL,
     category_id INT NOT NULL,
     inventory_Item_id INT NOT NULL,
